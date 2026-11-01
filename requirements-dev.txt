@@ -2,4 +2,4 @@
 # 開發與測試用（測試不需要 GPU、模型或網路，只需要 ffmpeg）
 numpy>=1.24
 pytest>=8.0
-google-genai>=2.30
+google-genai>=2.34

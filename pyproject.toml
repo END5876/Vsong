@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "從直播、錄影或錄音中自動擷取唱歌的段落，只聽歌、跳過聊天"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.10"
+requires-python = ">=3.11"          # google-genai 2.34（Interactions API）要 3.11 以上
 keywords = ["karaoke", "livestream", "vtuber", "youtube", "audio-classification", "music"]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-identify = ["google-genai>=2.30", "shazamio>=0.6"]
+identify = ["google-genai>=2.34", "shazamio>=0.6"]
 dev = ["pytest>=8.0"]
 
 [project.scripts]

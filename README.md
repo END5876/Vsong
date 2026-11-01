@@ -67,7 +67,7 @@ flowchart LR
 
 ## 需求
 
-- Python 3.10 以上
+- Python 3.11 以上（Gemini 辨識歌名用的 google-genai 2.34 需要 3.11）
 - [ffmpeg](https://ffmpeg.org/)
 - [Deno](https://deno.com/)（yt-dlp 用來解 YouTube 的 JS 驗證，沒有的話常常抓不到音訊）
 - 建議有 NVIDIA 顯卡（沒有也能跑，只是慢很多）

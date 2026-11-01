@@ -17,5 +17,5 @@ soundfile>=0.12
 # 選用：自動辨識歌名（--identify）
 #   google-genai：用 Gemini 聽歌詞，翻唱也認得出來（金鑰寫在 .env，見 .env.example）
 #   shazamio：沒有 Gemini 金鑰時使用，只認得原曲錄音
-google-genai>=2.30
+google-genai>=2.34
 shazamio>=0.6
