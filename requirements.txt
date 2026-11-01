@@ -1,0 +1,21 @@
+# -*- coding: utf-8 -*-
+# vsong 執行所需套件
+#
+# ⚠ 有 NVIDIA 顯卡的話，請「先」安裝 CUDA 版 PyTorch，再裝這個檔案，
+#   否則 pip 會裝成只能用 CPU 的版本（慢很多）。指令依 https://pytorch.org 選擇，例如：
+#   pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu124
+#
+# 另外需要系統上的 ffmpeg（Windows：winget install Gyan.FFmpeg）
+
+torch>=2.1
+# [default] 會一起裝 yt-dlp-ejs（解 YouTube 的 JS 驗證，搭配 Deno）；少了它常常抓不到音訊格式
+yt-dlp[default]>=2025.1.1
+transformers>=4.40
+numpy>=1.24
+soundfile>=0.12
+
+# 選用：自動辨識歌名（--identify）
+#   google-genai：用 Gemini 聽歌詞，翻唱也認得出來（金鑰寫在 .env，見 .env.example）
+#   shazamio：沒有 Gemini 金鑰時使用，只認得原曲錄音
+google-genai>=2.30
+shazamio>=0.6

@@ -1,0 +1,28 @@
+# 輸出（音訊檔很大，不要進版控）
+out/
+*.m4a
+*.webm
+*.opus
+*.mp3
+*.wav
+
+# 金鑰、登入憑證（不要上傳）
+.env
+*cookies*.txt
+cookies.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+
+# 編輯器 / 系統
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

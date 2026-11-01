@@ -1,0 +1,1648 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vsong</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>">
+<style>
+/* ───────── 配色：深海藍 ＋ 天藍（只做暗色，電腦大螢幕用） ───────── */
+:root {
+  --bg: #0c1320; --panel: #131d2c; --panel-2: #182538; --raise: #1e2d44;
+  --line: #22304a; --line-2: #2e4163;
+  --text: #e2e8f2; --muted: #8796ad; --dim: #5f6f88;
+  --accent: #4cc2ff; --accent-ink: #04121f; --accent-soft: rgba(76, 194, 255, .14);
+  --warn: #ffb84d; --warn-soft: rgba(255, 184, 77, .15);
+  --err: #ff6b6b; --ok: #4ade80; --ok-soft: rgba(74, 222, 128, .13);
+  --cut: #ff5c8a;                 /* 切點 */
+  --page: 2400px; --hdr: 56px; --player: 68px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei UI", "Noto Sans TC", sans-serif;
+  padding-bottom: calc(var(--player) + 16px);
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+kbd { font: 11.5px ui-monospace, Consolas, monospace; padding: 1px 5px; border: 1px solid var(--line-2);
+  border-bottom-width: 2px; border-radius: 4px; background: var(--panel-2); color: var(--text); }
+.hint { font-size: 12.5px; color: var(--muted); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; }
+[hidden] { display: none !important; }
+
+/* 輸入 */
+textarea, input[type=text], input[type=number], input[type=search], select {
+  width: 100%; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; outline: none;
+}
+textarea:focus, input:focus, select:focus { border-color: var(--accent); }
+textarea { min-height: 120px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+input[type=checkbox] { accent-color: var(--accent); width: auto; }
+label.f { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+
+/* 按鈕 */
+.btn {
+  border: 1px solid var(--line-2); background: var(--panel-2); padding: 7px 14px; border-radius: 8px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--text);
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.1); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn.ghost:hover { color: var(--text); border-color: var(--line-2); }
+.btn.danger { color: var(--err); }
+.btn.sm { padding: 3px 10px; font-size: 13px; }
+.btn.xs { padding: 1px 7px; font-size: 12px; }
+.btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.sep { display: inline-block; width: 1px; height: 22px; background: var(--line-2); margin: 0 4px; vertical-align: middle; }
+
+/* 徽章 */
+.badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; padding: 1px 7px; border-radius: 999px;
+  border: 1px solid var(--line-2); color: var(--muted); white-space: nowrap; }
+.badge.ok { color: var(--ok); border-color: transparent; background: var(--ok-soft); }
+.badge.warn { color: var(--warn); border-color: transparent; background: var(--warn-soft); }
+.badge.acc { color: var(--accent); border-color: transparent; background: var(--accent-soft); }
+
+/* ───────── 頂端 ───────── */
+header { position: sticky; top: 0; z-index: 30; height: var(--hdr); background: rgba(12, 19, 32, .92);
+  backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.bar { max-width: var(--page); height: 100%; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; gap: 22px; }
+.logo { font-weight: 700; font-size: 18px; letter-spacing: .02em; }
+.logo b { color: var(--accent); }
+.tabs { display: flex; gap: 4px; }
+.tab { border: 0; background: none; padding: 7px 16px; border-radius: 8px; cursor: pointer; color: var(--muted); font-size: 15px; }
+.tab:hover { color: var(--text); }
+.tab.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.tab .n { font-size: 11.5px; margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); }
+.pill { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line-2);
+  background: var(--panel); border-radius: 999px; padding: 5px 14px; cursor: pointer; font-size: 13px; color: var(--muted); }
+.pill:hover { border-color: var(--accent); color: var(--text); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+.dot.run { background: var(--warn); animation: pulse 1s infinite; }
+.dot.ok { background: var(--ok); }
+.dot.err { background: var(--err); }
+@keyframes pulse { 50% { opacity: .3; } }
+
+main { max-width: var(--page); margin: 0 auto; padding: 18px 20px; }
+.view { display: none; }
+.view.on { display: block; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+h2 { font-size: 17px; margin: 0 0 12px; }
+h3 { font-size: 14px; margin: 0 0 8px; color: var(--muted); font-weight: 600; }
+.empty { text-align: center; padding: 70px 20px; color: var(--muted); }
+.empty .big { font-size: 42px; }
+
+/* ───────── 新增 ───────── */
+.addgrid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 18px; align-items: start; max-width: 1500px; }
+.opts { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 14px 0; }
+.opts label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-top: 12px; }
+details { margin-top: 14px; }
+summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+.addside p { margin: 0 0 10px; font-size: 13.5px; color: var(--muted); }
+.addside .steps { counter-reset: s; list-style: none; padding: 0; margin: 0 0 16px; }
+.addside .steps li { counter-increment: s; position: relative; padding: 0 0 10px 30px; font-size: 13.5px; color: var(--muted); }
+.addside .steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent); font-size: 12px; display: grid; place-items: center; font-weight: 700; }
+.addside .steps b { color: var(--text); }
+
+/* ───────── 修切點 ───────── */
+.fix { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 18px; align-items: start; }
+.flist { position: sticky; top: calc(var(--hdr) + 18px); max-height: calc(100vh - var(--hdr) - var(--player) - 36px);
+  display: flex; flex-direction: column; padding: 12px; }
+.flist .seg { display: flex; background: var(--panel-2); border-radius: 8px; padding: 3px; gap: 2px; margin: 8px 0; }
+.flist .seg button { flex: 1; border: 0; background: none; color: var(--muted); padding: 5px 0; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.flist .seg button.on { background: var(--raise); color: var(--text); font-weight: 600; }
+.flist .items { overflow: auto; margin: 8px -6px 0; padding: 0 6px; }
+.fitem { display: block; width: 100%; text-align: left; border: 1px solid transparent; background: none; border-radius: 8px;
+  padding: 8px 10px; cursor: pointer; color: var(--text); margin-bottom: 2px; }
+.fitem:hover { background: var(--panel-2); }
+.fitem.on { background: var(--accent-soft); border-color: var(--accent); }
+.fitem .t { font-size: 13.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.fitem .m { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 3px; }
+.fitem .dirty { color: var(--warn); }
+.fmain { min-width: 0; }
+.fhead { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
+.fhead h2 { margin: 0 0 4px; font-size: 19px; }
+.fhead .m { color: var(--muted); font-size: 13px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.subtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+.subtabs button { border: 0; background: none; color: var(--muted); padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.subtabs button.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.lock { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 11px; border: 1px solid var(--line-2);
+  border-radius: 8px; cursor: pointer; user-select: none; color: var(--muted); white-space: nowrap; }
+.lock.on { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); }
+.menu { position: relative; }
+.menu .pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; background: var(--raise); border: 1px solid var(--line-2);
+  border-radius: 10px; padding: 6px; min-width: 220px; box-shadow: 0 10px 30px rgb(0 0 0 / .4); }
+.menu .pop button, .menu .pop a { display: block; width: 100%; text-align: left; border: 0; background: none; color: var(--text);
+  padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.menu .pop button:hover, .menu .pop a:hover { background: var(--accent-soft); text-decoration: none; }
+
+/* 編輯器 */
+.edit { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.etop { position: sticky; top: var(--hdr); z-index: 10; background: var(--panel); border-bottom: 1px solid var(--line);
+  border-radius: 12px 12px 0 0; padding: 10px 14px 8px; }
+.ov { display: block; width: 100%; height: 54px; border-radius: 6px; cursor: pointer; background: var(--panel-2); }
+.ovlegend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin: 3px 0 8px; flex-wrap: wrap; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+.pos { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.pos .now { font-size: 13px; color: var(--muted); }
+.pos .now b { font-size: 18px; color: var(--accent); font-variant-numeric: tabular-nums; margin: 0 6px; }
+.edbar { gap: 4px; }
+.edbar .dirty { color: var(--warn); font-size: 13px; margin-left: auto; }
+.edbar .dirty[hidden] + .spacer { margin-left: auto; }
+.ewrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; padding: 10px 14px 14px; }
+.ewrap.split { grid-template-columns: minmax(0, 1fr) 720px; }
+.tbl { overflow-x: auto; }
+.edit table { width: 100%; border-collapse: collapse; }
+.edit th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 500; padding: 4px 4px 6px; }
+.edit td { padding: 3px 4px; vertical-align: middle; }
+.edit tbody tr { border-top: 1px solid var(--line); }
+.edit td input[type=text] { background: var(--bg); padding: 5px 8px; }
+.edit td.tm { white-space: nowrap; }
+.edit td.tm input { width: 112px; font-variant-numeric: tabular-nums; }
+.edit td input[data-k="title"] { min-width: 220px; }
+.edit td input[data-k="artist"] { min-width: 140px; }
+.edit .tmw { display: flex; gap: 4px; align-items: center; }
+.edit .tmw .btn { padding: 3px 8px; }
+.edit .hear { color: var(--accent); }
+.edit td.ops { white-space: nowrap; }
+.edit td.num { color: var(--dim); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.edit td.info { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 90px; max-width: 210px; }
+.edit td.info small { margin-left: 6px; }
+.edit td.info .tag, .edit td.info .btn { display: inline-block; margin: 2px 4px 0 0; white-space: nowrap; }
+.tag { font-size: 11px; padding: 1px 6px; border-radius: 6px; background: var(--warn-soft); color: var(--warn); }
+.edit tr.warn td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+.edit tr.active td { background: var(--accent-soft); }
+.edit .bad { border-color: var(--err) !important; }
+.edit input.flash { border-color: var(--ok) !important; box-shadow: 0 0 0 2px var(--ok-soft); }
+
+/* 看圖 */
+.viewer { position: sticky; top: var(--vtop, 220px); padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); }
+.viewer .vhead { margin-bottom: 8px; }
+.viewer .vhead b { font-size: 15px; }
+.viewer .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.viewer .vgrid { display: grid; gap: 12px; }
+.viewer .vbar { gap: 6px; margin-bottom: 4px; font-size: 13px; }
+.viewer .vbar b { color: var(--cut); font-variant-numeric: tabular-nums; }
+.viewer canvas { display: block; width: 100%; height: 210px; border-radius: 6px; cursor: crosshair; background: #03070d; }
+.viewer .vmsg { margin: 4px 0 0; min-height: 1em; }
+
+/* 粉絲歌單 */
+.setlist table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.setlist th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 500; padding: 4px; }
+.setlist td { padding: 5px 4px; border-top: 1px solid var(--line); vertical-align: middle; }
+.setlist td.tm { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.setlist td.st { white-space: nowrap; color: var(--ok); font-size: 13px; }
+.setlist tr.miss td.st { color: var(--warn); }
+.setlist small { color: var(--muted); margin-left: 6px; }
+.setlist pre { white-space: pre-wrap; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; font-size: 12px; max-height: 300px; overflow: auto; }
+.slgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+
+/* ───────── 歌庫 ───────── */
+.lib { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 18px; align-items: start; }
+.side { position: sticky; top: calc(var(--hdr) + 18px); padding: 8px; }
+.side .ch { display: flex; justify-content: space-between; gap: 8px; width: 100%; text-align: left; border: 0; background: none;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer; color: var(--text); }
+.side .ch:hover { background: var(--panel-2); }
+.side .ch.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.side .ch span:last-child { color: var(--muted); font-size: 12px; font-weight: 400; }
+.libhead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.libhead h2 { margin: 0; font-size: 20px; }
+.libhead select { width: auto; }
+.libhead input[type=search] { max-width: 300px; margin-left: auto; }
+.stream { padding: 0; margin-bottom: 8px; overflow: clip; }
+.shead { display: flex; gap: 12px; align-items: center; padding: 10px 14px; cursor: pointer; }
+.shead:hover { background: var(--panel-2); }
+.shead .chev { color: var(--dim); width: 14px; transition: transform .15s; }
+.stream.open .shead .chev { transform: rotate(90deg); }
+.shead .t { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shead .m { color: var(--muted); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.songs { list-style: none; margin: 0; padding: 4px 0 8px; border-top: 1px solid var(--line); }
+.song { display: grid; grid-template-columns: 34px 30px minmax(0, 1fr) auto auto 28px; gap: 10px; align-items: center; padding: 4px 16px; cursor: pointer; }
+.song:hover { background: var(--panel-2); }
+.song.playing { background: var(--accent-soft); }
+.song.playing .name { color: var(--accent); font-weight: 600; }
+.song .num, .song .time, .song .len { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.song .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.song .name small { color: var(--muted); margin-left: 6px; }
+.song .name .tag { margin-left: 8px; }
+.song .untitled { color: var(--dim); font-style: italic; }
+.song.missing { opacity: .45; cursor: default; }
+.play { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--panel-2);
+  display: grid; place-items: center; cursor: pointer; font-size: 11px; padding: 0; color: var(--text); }
+.song:hover .play, .song.playing .play { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+/* ───────── 工作面板、快捷鍵、播放器、提示 ───────── */
+.drawer { position: fixed; top: var(--hdr); right: 0; bottom: var(--player); width: 720px; z-index: 25; background: var(--panel);
+  border-left: 1px solid var(--line); box-shadow: -10px 0 30px rgb(0 0 0 / .35); display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform .2s; }
+.drawer.on { transform: none; }
+.drawer .dh { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.drawer .queue { padding: 8px 16px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); }
+.log { flex: 1; margin: 0; background: #070c15; color: #cfd8e6; padding: 12px 16px; overflow: auto; white-space: pre-wrap; word-break: break-all;
+  font: 12.5px/1.5 ui-monospace, Consolas, "Microsoft JhengHei UI", monospace; }
+.modal { position: fixed; inset: 0; z-index: 40; background: rgb(0 0 0 / .55); display: grid; place-items: center; }
+.modal .box { background: var(--panel); border: 1px solid var(--line-2); border-radius: 14px; padding: 22px 26px; width: 860px;
+  max-height: 86vh; overflow: auto; }
+.keys { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 30px; }
+.keys h3 { grid-column: 1 / -1; margin: 12px 0 2px; color: var(--accent); }
+.keys div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+.keys div span:first-child { white-space: nowrap; }
+.keys div span:last-child { color: var(--muted); text-align: right; }
+.player { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; height: var(--player); background: var(--panel);
+  border-top: 1px solid var(--line); }
+.player .in { max-width: var(--page); height: 100%; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; gap: 14px; }
+.player .now { width: 440px; min-width: 0; }
+.player .now .a { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player .now .b { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player .now .b b { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+.player audio { flex: 1; min-width: 0; height: 40px; }
+.ctl { border: 0; background: none; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 6px; color: var(--text); }
+.ctl:hover { background: var(--panel-2); }
+.ctl:disabled { opacity: .3; cursor: default; background: none; }
+.toast { position: fixed; left: 50%; bottom: calc(var(--player) + 22px); transform: translateX(-50%) translateY(20px); opacity: 0;
+  background: var(--raise); color: var(--text); border: 1px solid var(--line-2); padding: 9px 16px; border-radius: 8px; font-size: 14px;
+  transition: .2s; pointer-events: none; z-index: 50; max-width: calc(100% - 32px); box-shadow: 0 8px 24px rgb(0 0 0 / .4); }
+.toast.on { opacity: 1; transform: translateX(-50%); }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="logo">🎤 v<b>song</b></div>
+    <nav class="tabs">
+      <button class="tab" data-view="add">新增</button>
+      <button class="tab" data-view="fix">修切點<span class="n" id="todoN" hidden></span></button>
+      <button class="tab" data-view="lib">歌庫</button>
+    </nav>
+    <button class="pill" id="jobPill" title="工作進度和紀錄"><i class="dot" id="dot"></i><span id="jobText">閒置</span></button>
+    <button class="btn ghost sm" id="helpBtn" title="快捷鍵（?）">⌨ 快捷鍵</button>
+  </div>
+</header>
+
+<main>
+  <!-- ───── 新增 ───── -->
+  <section class="view" id="view-add">
+    <div class="addgrid">
+      <div class="card">
+        <h2>新增歌回</h2>
+        <div class="row" style="justify-content:space-between;margin-bottom:6px">
+          <label class="f" for="urls" style="margin:0">YouTube 網址（影片、播放清單、頻道），或電腦裡的影片／音檔／資料夾路徑，一行一個</label>
+          <div class="row"><button class="btn sm" id="pickFiles">📄 選擇檔案…</button><button class="btn sm" id="pickFolder">📁 選擇資料夾…</button></div>
+        </div>
+        <textarea id="urls" placeholder="https://www.youtube.com/watch?v=XXXX&#10;https://www.youtube.com/@頻道名/streams&#10;D:\錄影\karaoke.mp4"></textarea>
+        <div class="opts">
+          <label><input type="checkbox" id="identify"> 辨識歌名 <span class="hint" id="identifyHow"></span></label>
+          <label title="短的歌用 iTunes 查原曲長度；差很多時會提醒（可能被切掉或是 TV size）"><input type="checkbox" id="lengths" checked> 查原曲長度</label>
+          <label><input type="checkbox" id="merge"> 另外輸出整場合輯</label>
+        </div>
+        <div class="fields">
+          <div>
+            <label class="f" for="cookies">會員限定影片</label>
+            <select id="cookies">
+              <option value="">不使用</option>
+              <option value="file">cookies.txt 檔案（建議）</option>
+              <option value="firefox">讀取 Firefox 登入</option>
+              <option value="chrome">讀取 Chrome 登入</option>
+              <option value="edge">讀取 Edge 登入</option>
+            </select>
+            <div class="row" id="cookiesFileRow" style="margin-top:6px;gap:4px;flex-wrap:nowrap" hidden>
+              <input type="text" id="cookies_file" placeholder="cookies.txt 的路徑"><button class="btn sm" id="pickCookies" type="button">選擇…</button>
+            </div>
+          </div>
+          <div><label class="f" for="filter">只處理標題含這些字的（清單、頻道、資料夾）</label><input type="text" id="filter" placeholder="歌枠,karaoke,歌ってみた"></div>
+          <div><label class="f" for="limit">每個清單最多幾部</label><input type="number" id="limit" min="1" placeholder="全部"></div>
+          <div><label class="f" for="channel">本機檔案放進哪個頻道</label><input type="text" id="channel" placeholder="本機檔案"></div>
+        </div>
+        <details>
+          <summary>進階設定</summary>
+          <div class="opts">
+            <label title="之前自動辨識的歌名全部重來；手動填的和粉絲歌單的會保留"><input type="checkbox" id="reidentify"> 重新辨識歌名</label>
+            <label><input type="checkbox" id="force"> 已處理過的也重做（「已手動處理」的照樣略過）</label>
+            <label><input type="checkbox" id="reanalyze"> 忽略快取，重跑 AI 模型</label>
+          </div>
+          <div class="fields">
+            <div><label class="f" for="threshold">門檻</label><input type="number" id="threshold" step="0.05" value="0.5"><div class="hint">聊天被當成歌 → 調高</div></div>
+            <div><label class="f" for="min_len">最短歌曲（秒）</label><input type="number" id="min_len" value="60"></div>
+            <div><label class="f" for="max_gap">合併空隙（秒）</label><input type="number" id="max_gap" value="8"><div class="hint">兩首黏在一起 → 調小</div></div>
+            <div><label class="f" for="pad">前後多留（秒）</label><input type="number" id="pad" value="2" min="0" step="0.5"></div>
+            <div><label class="f" for="extend">頭尾最多延伸（秒）</label><input type="number" id="extend" value="15" min="0"></div>
+            <div><label class="f" for="sleep">每次連 YouTube 至少隔（秒）</label><input type="text" id="sleep" value="5-10"><div class="hint">已下載好的不用等；0 表示不停</div></div>
+            <div><label class="f" for="jobs">同時處理幾部</label><input type="number" id="jobs" value="2" min="1" max="6"></div>
+            <div><label class="f" for="batch">GPU 批次</label><input type="number" id="batch" value="16" min="1"><div class="hint">記憶體不足 → 調小</div></div>
+          </div>
+        </details>
+        <div class="row" style="margin-top:18px">
+          <button class="btn primary" id="runBtn">▶ 開始處理</button>
+          <span class="hint">處理時可以切到其他頁面；進度在右上角</span>
+        </div>
+      </div>
+      <div class="card addside">
+        <h2>流程</h2>
+        <ol class="steps">
+          <li><b>新增</b>：貼上網址或選擇檔案，按開始處理。會自動切歌、找粉絲歌單、辨識歌名、檢查切點。</li>
+          <li><b>修切點</b>：左邊是還沒修好的場次（可疑切點多的排前面）。看圖、試聽、修好後「儲存並修下一場」。</li>
+          <li><b>歌庫</b>：修好的歌都在這裡，可以播放整個頻道、隨機播放、下載歌庫表。</li>
+        </ol>
+        <h3>維護</h3>
+        <div class="row">
+          <button class="btn sm" id="checkAll2" title="不重新處理，只檢查歌庫裡所有切點，標出可能不準的">檢查所有切點</button>
+          <button class="btn sm" id="rebuildBtn" title="依現有資料重新產生各頻道的 all_songs.m3u8、library.csv">重建總歌單</button>
+        </div>
+        <p style="margin-top:12px">輸出資料夾：<span id="outDir">—</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───── 修切點 ───── -->
+  <section class="view" id="view-fix">
+    <div class="fix">
+      <div class="card flist">
+        <div class="row"><h2 style="margin:0" class="grow">場次</h2>
+          <button class="btn sm" id="checkAll" title="不重新處理，只檢查所有切點，標出可能不準的（已手動處理的略過）">檢查切點</button></div>
+        <div class="seg" id="fixSeg">
+          <button data-f="todo">待修</button><button data-f="done">已完成</button><button data-f="all">全部</button>
+        </div>
+        <div class="row" style="gap:6px;flex-wrap:nowrap">
+          <select id="fixCh"></select>
+          <input type="search" id="fixQ" placeholder="搜尋場次…">
+        </div>
+        <div class="items" id="fixItems"></div>
+      </div>
+      <div class="fmain" id="fixMain"></div>
+    </div>
+  </section>
+
+  <!-- ───── 歌庫 ───── -->
+  <section class="view" id="view-lib">
+    <div class="lib">
+      <nav class="card side" id="channels"></nav>
+      <div id="libMain"></div>
+    </div>
+  </section>
+</main>
+
+<aside class="drawer" id="drawer">
+  <div class="dh"><b id="jobLabel" class="grow">工作</b>
+    <button class="btn sm danger" id="stopBtn" disabled>■ 停止</button>
+    <button class="btn sm ghost" id="drawerClose" title="關閉（Esc）">✕</button></div>
+  <div class="queue" id="jobQueue" hidden></div>
+  <pre class="log" id="log">還沒有執行任何工作。</pre>
+</aside>
+
+<div class="modal" id="help" hidden>
+  <div class="box">
+    <div class="row"><h2 class="grow" style="margin:0">快捷鍵</h2><button class="btn sm ghost" data-close>✕</button></div>
+    <div class="keys">
+      <h3>播放（任何頁面，沒在打字時）</h3>
+      <div><span><kbd>空白鍵</kbd></span><span>播放／暫停（修切點時還沒播放：從目前這首開頭播）</span></div>
+      <div><span><kbd>←</kbd> <kbd>→</kbd></span><span>播放位置 −5／+5 秒（<kbd>Shift</kbd> 1 秒）</span></div>
+      <h3>修切點</h3>
+      <div><span><kbd>↑</kbd> <kbd>↓</kbd></span><span>上一首／下一首（看圖跟著換）</span></div>
+      <div><span><kbd>Alt</kbd>+<kbd>1</kbd>　<kbd>[</kbd></span><span>播放位置填入開始</span></div>
+      <div><span><kbd>Alt</kbd>+<kbd>2</kbd>　<kbd>]</kbd></span><span>播放位置填入結束</span></div>
+      <div><span><kbd>,</kbd> <kbd>.</kbd></span><span>上一個／下一個候選切點，並試聽</span></div>
+      <div><span><kbd>Enter</kbd></span><span>把選中的候選設成切點</span></div>
+      <div><span><kbd>Ctrl</kbd>+<kbd>Z</kbd>／<kbd>Y</kbd></span><span>復原／重做</span></div>
+      <div><span><kbd>Ctrl</kbd>+<kbd>S</kbd></span><span>儲存並重新切檔</span></div>
+      <div><span><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span><span>儲存並修下一場</span></div>
+      <h3>時間欄位（打字時）</h3>
+      <div><span><kbd>↑</kbd> <kbd>↓</kbd></span><span>±0.1 秒（<kbd>Shift</kbd> 1 秒、<kbd>Alt</kbd> 0.01 秒）</span></div>
+      <div><span>時間寫法</span><span>1:02:03.45、62:03.5、3723.45</span></div>
+      <h3>看圖（滑鼠）</h3>
+      <div><span>點一下</span><span>試聽：開頭從那裡播；結尾從那裡播到結束時間</span></div>
+      <div><span>雙擊／右鍵</span><span>把切點設在那裡（靠近 ▼ 會吸附到候選）</span></div>
+      <div><span>點 ▼</span><span>試聽「切在這裡」</span></div>
+      <div><span>點整場縮圖</span><span>色塊：跳到那首；空白處：從那裡播原始音訊</span></div>
+      <h3>其他</h3>
+      <div><span><kbd>?</kbd></span><span>打開／關閉這個說明</span></div>
+      <div><span><kbd>Esc</kbd></span><span>關閉說明、工作面板</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="player">
+  <div class="in">
+    <div class="now"><div class="a" id="nowA">還沒有播放</div><div class="b"><b id="nowPos"></b> <span id="nowB">在歌庫點一首歌，或在修切點按空白鍵</span></div></div>
+    <button class="ctl" id="prevBtn" title="上一首" disabled>⏮</button>
+    <button class="ctl" id="toggleBtn" title="播放／暫停（空白鍵）">▶</button>
+    <button class="ctl" id="nextBtn" title="下一首" disabled>⏭</button>
+    <audio id="audio" controls preload="none"></audio>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fileUrl = p => "/files/" + p.split("/").map(encodeURIComponent).join("/");
+const qa = s => String(s).replace(/["\\]/g, "\\$&");    // 放進 [data-x="…"] 選擇器用
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("vsong." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("vsong." + k, JSON.stringify(v)); } catch {} },
+};
+
+// ───────── 時間 ─────────
+function fmtT(sec) {                       // 歌庫顯示用：到秒
+  sec = Math.max(0, Math.floor(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0");
+}
+function fmtFull(sec) {                    // 編輯用：精確到 0.01 秒（尾巴的 0 省略）
+  const cs = Math.max(0, Math.round(sec * 100));
+  const h = Math.floor(cs / 360000), m = Math.floor(cs % 360000 / 6000), s = Math.floor(cs % 6000 / 100), f = cs % 100;
+  return h + ":" + String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0")
+    + (f ? "." + String(f).padStart(2, "0").replace(/0$/, "") : "");
+}
+function parseT(v) {                       // 接受 1:02:03.45、62:03、3723.4、1h02m03s
+  v = String(v).trim();
+  const m = v.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?$/i);
+  if (m && v) return (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0);
+  const parts = v.split(":");
+  if (parts.length > 3 || parts.some(p => p === "" || isNaN(p))) return NaN;
+  return parts.reduce((a, p) => a * 60 + parseFloat(p), 0);
+}
+
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 3000);
+}
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+// ───────── 頁面 ─────────
+const state = {
+  view: store.get("view2", "fix"),
+  fixDir: store.get("fixDir", null), fixTab: "edit", fixList: store.get("fixList", "todo"), fixCh: store.get("fixCh", ""), fixQ: "",
+  libCh: store.get("libCh", null), libQ: "", libFilter: store.get("libFilter", ""), libOpen: new Set(),
+};
+function showView(name) {
+  state.view = name; store.set("view2", name);
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.view === name));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "view-" + name));
+  if (name === "fix") renderFix();
+  if (name === "lib") renderLib();
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => showView(t.dataset.view));
+
+// ───────── 新增 ─────────
+const FIELDS = ["identify", "reidentify", "merge", "channel", "filter", "limit", "cookies", "cookies_file", "threshold", "min_len",
+                "max_gap", "pad", "extend", "sleep", "jobs", "lengths", "batch", "force", "reanalyze"];
+function readForm() {
+  const o = { urls: $("#urls").value };
+  for (const k of FIELDS) { const el = $("#" + k); o[k] = el.type === "checkbox" ? el.checked : el.value; }
+  return o;
+}
+(() => {
+  const saved = store.get("form", {});
+  for (const k of FIELDS) if (k in saved && !["force", "reanalyze", "reidentify"].includes(k)) {
+    const el = $("#" + k); el.type === "checkbox" ? el.checked = saved[k] : el.value = saved[k];
+  }
+})();
+$("#runBtn").onclick = async () => {
+  const form = readForm();
+  if (!form.urls.trim()) { toast("請先貼上網址或選擇檔案"); $("#urls").focus(); return; }
+  try {
+    store.set("form", form);
+    await api("/api/run", form);
+    $("#urls").value = "";
+    startPolling(); openDrawer(true);
+  } catch (e) { toast(e.message); }
+};
+async function pick(kind) {
+  try {
+    toast("選擇視窗已開啟（可能在瀏覽器後面）");
+    const { paths } = await api("/api/pick", { kind });
+    if (!paths.length) return;
+    const ta = $("#urls"), cur = ta.value.replace(/\s+$/, "");
+    ta.value = (cur ? cur + "\n" : "") + paths.join("\n");
+    toast(kind === "folder" ? "已加入資料夾，會處理裡面所有影音檔" : `已加入 ${paths.length} 個檔案`);
+  } catch (e) { toast(e.message); }
+}
+$("#pickFiles").onclick = () => pick("files");
+$("#pickFolder").onclick = () => pick("folder");
+$("#reidentify").onchange = () => { if ($("#reidentify").checked) $("#identify").checked = true; };
+const showCookiesFile = () => { $("#cookiesFileRow").hidden = $("#cookies").value !== "file"; };
+$("#cookies").onchange = showCookiesFile; showCookiesFile();
+$("#pickCookies").onclick = async () => {
+  try {
+    toast("選擇視窗已開啟（可能在瀏覽器後面）");
+    const { paths } = await api("/api/pick", { kind: "cookies" });
+    if (paths.length) $("#cookies_file").value = paths[0];
+  } catch (e) { toast(e.message); }
+};
+// 瀏覽器拿不到拖進來檔案的完整路徑：擋下來（不然瀏覽器會直接開啟那個檔案）
+addEventListener("dragover", e => e.preventDefault());
+addEventListener("drop", e => { e.preventDefault(); toast("請用「選擇檔案…」按鈕，或貼上檔案路徑"); });
+api("/api/info").then(i => {
+  $("#identifyHow").textContent = i.gemini
+    ? `（先找粉絲歌單，其他用 Gemini ${i.gemini_model} 聽歌詞）`
+    : "（Shazam，翻唱很難認出；.env 填入 GEMINI_API_KEY 可改用 Gemini）";
+}).catch(() => {});
+const checkAll = async () => {
+  try { await api("/api/check", {}); toast("正在檢查所有切點…（不會改動切好的歌）"); startPolling(); } catch (e) { toast(e.message); }
+};
+$("#checkAll").onclick = $("#checkAll2").onclick = checkAll;
+$("#rebuildBtn").onclick = async () => { try { await api("/api/rebuild", {}); startPolling(); } catch (e) { toast(e.message); } };
+
+// ───────── 工作（右上角、右側面板） ─────────
+let job = { seq: -1, offset: 0, raw: "", running: false }, pollTimer = null;
+const renderLog = raw => raw.replace(/\r\n/g, "\n").split("\n").map(l => l.slice(l.lastIndexOf("\r") + 1)).join("\n");
+function openDrawer(on) { $("#drawer").classList.toggle("on", on ?? !$("#drawer").classList.contains("on")); }
+$("#jobPill").onclick = () => openDrawer();
+$("#drawerClose").onclick = () => openDrawer(false);
+$("#stopBtn").onclick = async () => { await api("/api/stop", {}); toast("已要求停止（排隊中的也取消）"); };
+async function poll() {
+  let s;
+  try {
+    s = await api("/api/job?since=" + job.offset);
+    if (s.seq !== job.seq) {               // 換了新工作：從頭抓
+      job = { seq: s.seq, offset: 0, raw: "", running: job.running };
+      if (s.log.length !== s.offset) s = await api("/api/job?since=0");
+    }
+  } catch { return schedule(3000); }
+  const wasRunning = job.running, newJob = s.seq !== job.lastSeq;
+  job.raw += s.log; job.offset = s.offset; job.running = s.running; job.lastSeq = s.seq;
+  if (s.seq > 0) {
+    const log = $("#log"), atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+    log.textContent = renderLog(job.raw);
+    if (atBottom || s.log) log.scrollTop = log.scrollHeight;
+    $("#jobLabel").textContent = s.label;
+  }
+  const pending = s.pending || [];
+  $("#jobQueue").hidden = !pending.length;
+  $("#jobQueue").textContent = pending.length ? "排隊中：" + pending.join("、") : "";
+  $("#dot").className = "dot" + (s.running ? " run" : s.returncode === 0 ? " ok" : s.returncode != null ? " err" : "");
+  $("#jobText").textContent = s.running ? `${s.label}中…${pending.length ? `（＋${pending.length} 排隊）` : ""}`
+    : s.returncode == null ? "閒置" : s.returncode === 0 ? `完成：${s.label}` : `失敗／已停止：${s.label}`;
+  $("#stopBtn").disabled = !s.running;
+  $("#runBtn").disabled = s.running || pending.length > 0;
+  // 一個工作做完（排隊的下一個可能已經接著開始）：重新讀歌庫
+  if ((wasRunning && !s.running) || (wasRunning && newJob)) {
+    if (!s.running) toast(s.returncode === 0 ? `「${s.label}」完成` : `「${s.label}」結束（代碼 ${s.returncode}）`);
+    loadLibrary();
+  }
+  schedule(s.running ? 700 : 4000);
+}
+function schedule(ms) { clearTimeout(pollTimer); pollTimer = setTimeout(poll, ms); }
+function startPolling() { job.running = true; schedule(100); }
+
+// ───────── 歌庫資料 ─────────
+let lib = { channels: [] };
+async function loadLibrary() {
+  try { lib = await api("/api/library"); } catch (e) { toast("讀取歌庫失敗：" + e.message); return; }
+  $("#outDir").textContent = lib.out || "—";
+  renderTodoCount();
+  if (state.view === "fix") renderFix(); else if (state.view === "lib") renderLib();
+}
+const allStreams = () => lib.channels.flatMap(ch => ch.streams.map(st => ({ ch, st })));
+const findStream = dir => allStreams().find(x => x.st.dir === dir) || null;
+const flaggedCount = st => st.locked ? 0 : st.songs.filter(s => !s.ok && (s.check || []).length).length;
+const SL_NAME = { holodex: "Holodex", comments: "留言歌單", manual: "手動歌單" };
+const BY = { setlist: "來源：粉絲歌單", gemini: "來源：Gemini", shazam: "來源：Shazam", manual: "手動填寫" };
+const lyricSearch = l => "https://www.google.com/search?q=" + encodeURIComponent(`"${l.slice(0, 40)}" 歌詞`);
+const songLabel = s => s.title || `第 ${s.n} 首`;
+function renderTodoCount() {
+  const n = allStreams().filter(x => !x.st.locked).length;
+  $("#todoN").hidden = !n; $("#todoN").textContent = n;
+}
+
+// 切點檢查（vsong.CHECKS）
+const CHECKS = {
+  end: ["結尾可疑", "結尾附近沒有伴奏結束後的安靜：可能切在伴奏中間，或後面接著 BGM／講話"],
+  start: ["開頭可疑", "開頭附近沒有伴奏開始前的安靜：可能切在前奏中間，或是清唱、邊講話邊開始的歌"],
+  gap: ["後段沒伴奏", "歌的後段有一段沒有伴奏：歌可能早就結束了，後面接到別的段落"],
+  long: ["比原曲長很多", "比原曲長 45 秒以上：可能接到別的段落"],
+};
+const checkTag = codes => codes.length ? `<span class="tag" title="${esc(codes.map(c => (CHECKS[c] || [c, c])[1]).join("\n"))}">⚠ ${codes.map(c => (CHECKS[c] || [c])[0]).join("、")}</span>` : "";
+function streamBadges(st) {
+  const n = flaggedCount(st);
+  return (st.locked ? `<span class="badge ok">✓ 已手動處理</span>` : "")
+    + (n ? `<span class="badge warn">⚠ ${n} 個可疑</span>` : "")
+    + `<span class="badge">${SL_NAME[st.setlist_source] || "無歌單"}</span>`;
+}
+async function setLocked(st, on) {
+  try {
+    await api("/api/lock", { dir: st.dir, locked: on });
+    st.locked = on;
+    toast(on ? "已標為已手動處理：之後處理影片會略過這場" : "已取消：之後處理影片會重新偵測這場");
+  } catch (err) { toast("標記失敗：" + err.message); }
+  renderTodoCount();
+  if (state.view === "fix") renderFix(true); else renderLib();
+}
+
+// ───────── 歌庫 ─────────
+function renderLib() {
+  const side = $("#channels");
+  if (!lib.channels.length) {
+    side.innerHTML = `<div class="hint" style="padding:10px">還沒有任何頻道</div>`;
+    $("#libMain").innerHTML = `<div class="card empty"><div class="big">🎶</div><p>歌庫是空的。到「新增」貼上網址開始吧。</p></div>`;
+    return;
+  }
+  if (!lib.channels.some(c => c.name === state.libCh)) state.libCh = lib.channels[0].name;
+  side.innerHTML = lib.channels.map(c => `<button class="ch ${c.name === state.libCh ? "on" : ""}" data-ch="${esc(c.name)}">
+    <span>${esc(c.name)}</span><span>${c.streams.reduce((a, s) => a + s.songs.length, 0)}</span></button>`).join("");
+  side.querySelectorAll(".ch").forEach(b => b.onclick = () => { state.libCh = b.dataset.ch; store.set("libCh", state.libCh); renderLib(); });
+
+  const ch = lib.channels.find(c => c.name === state.libCh);
+  const q = state.libQ.trim().toLowerCase();
+  const match = s => !q || (s.title || "").toLowerCase().includes(q) || (s.artist || "").toLowerCase().includes(q);
+  const F = { "": () => true, locked: st => st.locked, unlocked: st => !st.locked, has: st => !!st.setlist, none: st => !st.setlist };
+  const shown = ch.streams.filter(F[state.libFilter] || F[""]).filter(st => !q || st.songs.some(match));
+  let html = `<div class="libhead">
+    <h2>${esc(ch.name)}</h2>
+    <span class="hint">${ch.streams.length} 場 · ${ch.streams.reduce((a, s) => a + s.songs.length, 0)} 首</span>
+    <button class="btn sm primary" id="playAll">▶ 播放全部</button>
+    <button class="btn sm" id="shuffle">🔀 隨機</button>
+    <select id="libFilter">
+      <option value="">全部場次</option><option value="locked">已手動處理</option><option value="unlocked">還沒手動處理</option>
+      <option value="has">有粉絲歌單</option><option value="none">沒有粉絲歌單</option>
+    </select>
+    <button class="btn sm ghost" id="expandAll">${shown.every(st => state.libOpen.has(st.dir)) && shown.length ? "全部收合" : "全部展開"}</button>
+    <a class="btn sm ghost" href="${fileUrl(ch.name + "/library.csv")}" download>⬇ 歌庫表</a>
+    <input type="search" id="libQ" placeholder="搜尋歌名、原唱…" value="${esc(state.libQ)}">
+  </div>`;
+  if (!shown.length) html += `<div class="card empty">沒有符合條件的場次</div>`;
+  for (const st of shown) {
+    const open = q || state.libOpen.has(st.dir), songs = st.songs.filter(match);
+    html += `<div class="card stream ${open ? "open" : ""}" data-dir="${esc(st.dir)}">
+      <div class="shead" data-act="toggle">
+        <span class="chev">▶</span>
+        <span class="t" title="${esc(st.title)}">${esc(st.title)}</span>
+        ${streamBadges(st)}
+        <span class="m">${esc(st.date || "日期不明")} · ${st.songs.length} 首</span>
+        <button class="btn sm" data-act="play" title="播放這場">▶</button>
+        <button class="btn sm" data-act="fix" title="到修切點打開這場">✎ 修切點</button>
+        ${st.url ? `<a class="btn sm ghost" href="${esc(st.url)}" target="_blank" rel="noopener" title="在 YouTube 開啟">↗</a>` : ""}
+      </div>
+      ${open ? `<ul class="songs">${songs.map(s => `
+        <li class="song ${s.file ? "" : "missing"}" data-n="${s.n}" title="${s.file ? esc(BY[s.by] || "") : "找不到音檔，可能需要重新切檔"}">
+          <button class="play" tabindex="-1">▶</button>
+          <span class="num">${String(s.n).padStart(2, "0")}</span>
+          <span class="name">${s.title ? esc(s.title) : `<span class="untitled">未命名</span>`}${s.artist ? `<small>${esc(s.artist)}</small>` : ""}${!s.title && s.lyrics ? `<small title="${esc(s.lyrics)}">「${esc(s.lyrics.slice(0, 30))}…」 <a href="${lyricSearch(s.lyrics)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔍 用歌詞搜尋</a></small>` : ""}${s.orig_len && s.end - s.start < s.orig_len * 0.7 ? `<span class="tag" title="比原曲短很多：可能唱一半被切掉，也可能是 TV size">比原曲短</span>` : ""}${!st.locked && !s.ok ? checkTag(s.check || []) : ""}</span>
+          <span class="time">${fmtT(s.start)}</span>
+          <span class="len">${fmtT(s.end - s.start)}</span>
+          ${st.url ? `<a href="${esc(st.url)}&t=${Math.floor(s.start)}s" target="_blank" rel="noopener" title="在 YouTube 開啟這一段" onclick="event.stopPropagation()">↗</a>` : "<span></span>"}
+        </li>`).join("")}</ul>` : ""}
+    </div>`;
+  }
+  $("#libMain").innerHTML = html;
+  $("#libFilter").value = state.libFilter;
+  $("#libFilter").onchange = e => { state.libFilter = e.target.value; store.set("libFilter", state.libFilter); renderLib(); };
+  const sq = $("#libQ");
+  sq.oninput = () => { state.libQ = sq.value; const p = sq.selectionStart; renderLib(); const s2 = $("#libQ"); s2.focus(); s2.setSelectionRange(p, p); };
+  $("#playAll").onclick = () => playList(channelQueue(ch, match), 0);
+  $("#shuffle").onclick = () => {
+    const qq = channelQueue(ch, match);
+    for (let i = qq.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [qq[i], qq[j]] = [qq[j], qq[i]]; }
+    playList(qq, 0);
+  };
+  $("#expandAll").onclick = () => {
+    const all = shown.every(st => state.libOpen.has(st.dir));
+    shown.forEach(st => all ? state.libOpen.delete(st.dir) : state.libOpen.add(st.dir));
+    renderLib();
+  };
+  document.querySelectorAll("#libMain .stream").forEach(el => {
+    const st = ch.streams.find(s => s.dir === el.dataset.dir);
+    el.querySelector('[data-act="toggle"]').onclick = e => {
+      if (e.target.closest("button, a")) return;
+      state.libOpen.has(st.dir) ? state.libOpen.delete(st.dir) : state.libOpen.add(st.dir);
+      renderLib();
+    };
+    el.querySelector('[data-act="play"]').onclick = () => playList(streamQueue(ch, st, () => true), 0);
+    el.querySelector('[data-act="fix"]').onclick = () => openFix(st.dir);
+    el.querySelectorAll(".song:not(.missing)").forEach(li => li.onclick = () => {
+      const qq = streamQueue(ch, st, match);
+      playList(qq, qq.findIndex(x => x.key === st.dir + "#" + li.dataset.n));
+    });
+  });
+  markPlaying();
+}
+function streamQueue(ch, st, match) {
+  return st.songs.filter(s => s.file && match(s)).map(s => ({
+    key: st.dir + "#" + s.n, src: fileUrl(s.file), title: songLabel(s), sub: `${ch.name} · ${st.date || ""} ${st.title}`,
+    dir: st.dir, offset: s.start,            // 這個檔案從直播的第幾秒開始（換算播放位置用）
+  }));
+}
+const channelQueue = (ch, match) => [...ch.streams].reverse().flatMap(st => streamQueue(ch, st, match));   // 由舊到新
+
+// ───────── 修切點：左邊的場次清單 ─────────
+function fixCandidates() {
+  const q = state.fixQ.trim().toLowerCase();
+  let list = allStreams().filter(({ ch, st }) => (!state.fixCh || ch.name === state.fixCh)
+    && (state.fixList === "all" || (state.fixList === "todo") === !st.locked)
+    && (!q || st.title.toLowerCase().includes(q) || (st.date || "").includes(q)));
+  // 待修：可疑多的排前面，再依日期新到舊
+  list.sort((a, b) => (state.fixList === "todo" ? flaggedCount(b.st) - flaggedCount(a.st) : 0) || (b.st.date || "").localeCompare(a.st.date || ""));
+  return list;
+}
+function renderFixList() {
+  const sel = $("#fixCh");
+  sel.innerHTML = `<option value="">全部頻道</option>` + lib.channels.map(c => `<option>${esc(c.name)}</option>`).join("");
+  sel.value = state.fixCh;
+  const all = allStreams().filter(({ ch }) => !state.fixCh || ch.name === state.fixCh);
+  const counts = { todo: all.filter(x => !x.st.locked).length, done: all.filter(x => x.st.locked).length, all: all.length };
+  document.querySelectorAll("#fixSeg button").forEach(b => {
+    b.classList.toggle("on", b.dataset.f === state.fixList);
+    b.textContent = { todo: "待修", done: "已完成", all: "全部" }[b.dataset.f] + ` ${counts[b.dataset.f]}`;
+  });
+  const list = fixCandidates();
+  $("#fixItems").innerHTML = list.length ? list.map(({ st }) => {
+    const n = flaggedCount(st), dirty = editState.get(st.dir)?.dirty;
+    return `<button class="fitem ${st.dir === state.fixDir ? "on" : ""}" data-dir="${esc(st.dir)}">
+      <div class="t">${esc(st.title)}</div>
+      <div class="m">${esc(st.date || "")} · ${st.songs.length} 首
+        ${st.locked ? `<span class="badge ok">✓</span>` : ""}${n ? `<span class="badge warn">⚠ ${n}</span>` : ""}
+        ${dirty ? `<span class="dirty">● 未儲存</span>` : ""}</div></button>`;
+  }).join("") : `<div class="hint" style="padding:16px 4px">${state.fixList === "todo" ? "全部修完了 🎉" : "沒有符合的場次"}</div>`;
+  $("#fixItems").querySelectorAll(".fitem").forEach(b => b.onclick = () => openFix(b.dataset.dir));
+}
+document.querySelectorAll("#fixSeg button").forEach(b => b.onclick = () => { state.fixList = b.dataset.f; store.set("fixList", state.fixList); renderFixList(); });
+$("#fixCh").onchange = e => { state.fixCh = e.target.value; store.set("fixCh", state.fixCh); renderFixList(); };
+$("#fixQ").oninput = e => { state.fixQ = e.target.value; renderFixList(); };
+
+function openFix(dir) {
+  state.fixDir = dir; state.fixTab = "edit"; store.set("fixDir", dir);
+  if (state.view !== "fix") showView("fix"); else renderFix(true);
+  $(`#fixItems .fitem[data-dir="${qa(dir)}"]`)?.scrollIntoView?.({ block: "nearest" });
+  scrollTo({ top: 0 });
+}
+
+// ───────── 修切點：右邊 ─────────
+let fixMounted = { dir: null, sig: "", tab: "" };
+function renderFix(force = false) {
+  renderFixList();
+  const main = $("#fixMain"), found = state.fixDir && findStream(state.fixDir);
+  if (!found) {
+    fixMounted = { dir: null, sig: "", tab: "" };
+    main.innerHTML = `<div class="card empty"><div class="big">✂️</div><p>從左邊選一場開始修。</p>
+      <p class="hint">「待修」是還沒手動處理的場次，可疑切點多的排在前面。修好按「儲存並修下一場」（<kbd>Ctrl</kbd>+<kbd>Enter</kbd>）。</p></div>`;
+    lastEditor = null;
+    return;
+  }
+  const { ch, st } = found;
+  // 資料沒變、或正在編輯還沒存：不要重畫（不打斷正在做的事）
+  const sig = JSON.stringify([st.songs, st.locked, st.setlist_source, st.merged]);
+  if (!force && fixMounted.dir === st.dir && fixMounted.tab === state.fixTab
+      && (fixMounted.sig === sig || editState.get(st.dir)?.dirty)) return;
+  fixMounted = { dir: st.dir, sig, tab: state.fixTab };
+  const n = flaggedCount(st), slN = st.setlist?.entries.length || 0;
+  main.innerHTML = `
+    <div class="fhead">
+      <div class="grow">
+        <h2>${esc(st.title)}</h2>
+        <div class="m">${esc(ch.name)} · ${esc(st.date || "日期不明")} · ${st.songs.length} 首 ${streamBadges(st)}
+          ${st.url ? `<a href="${esc(st.url)}" target="_blank" rel="noopener">YouTube ↗</a>` : st.local_path ? `<span title="${esc(st.local_path)}">📁 本機檔案</span>` : ""}</div>
+      </div>
+      <label class="lock ${st.locked ? "on" : ""}" title="勾了之後，處理影片時會略過這場（手動切好的不會被蓋掉）。儲存時會自動勾上">
+        <input type="checkbox" data-f="lock" ${st.locked ? "checked" : ""}> 已手動處理</label>
+      <div class="menu"><button class="btn sm" data-f="menu">⋯</button>
+        <div class="pop" hidden>
+          <button data-f="redo">重新偵測（調整門檻）…</button>
+          <button data-f="inlib">在歌庫中顯示</button>
+          ${st.url ? `<a href="${esc(st.url)}" target="_blank" rel="noopener">在 YouTube 開啟 ↗</a>` : ""}
+        </div></div>
+    </div>
+    <div class="subtabs">
+      <button data-tab="edit" class="${state.fixTab === "edit" ? "on" : ""}">時間軸${n ? ` <span class="badge warn">⚠ ${n}</span>` : ""}</button>
+      <button data-tab="setlist" class="${state.fixTab === "setlist" ? "on" : ""}">粉絲歌單${slN ? ` <span class="badge">${slN}</span>` : ""}</button>
+    </div>
+    <div id="fixBody"></div>`;
+  main.querySelector('[data-f="lock"]').onchange = e => setLocked(st, e.target.checked);
+  const pop = main.querySelector(".pop");
+  main.querySelector('[data-f="menu"]').onclick = e => { e.stopPropagation(); pop.hidden = !pop.hidden; };
+  main.querySelector('[data-f="redo"]').onclick = () => redetect(st);
+  main.querySelector('[data-f="inlib"]').onclick = () => { state.libCh = ch.name; state.libOpen.add(st.dir); showView("lib");
+    setTimeout(() => $(`#libMain .stream[data-dir="${qa(st.dir)}"]`)?.scrollIntoView?.({ block: "center" }), 50); };
+  main.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { state.fixTab = b.dataset.tab; renderFix(true); });
+  const body = $("#fixBody");
+  if (state.fixTab === "setlist") {
+    body.innerHTML = `<div class="slgrid">${st.setlist ? `<div class="card setlist">${setlistHtml(st)}</div>`
+      : `<div class="card setlist"><h2>粉絲歌單</h2><p class="hint">這場沒有找到粉絲歌單（YouTube 留言、Holodex）。可以在右邊貼上從別的地方拿到的歌單。</p></div>`}
+      <div class="card setlist">${setlistInputHtml(st)}</div></div>`;
+    body.querySelectorAll("[data-sl-play]").forEach(b => b.onclick = () => playSource(st, +b.dataset.slPlay));
+    bindSetlistInput(body, st);
+    lastEditor = null;
+  } else {
+    body.innerHTML = editorHtml(st);
+    bindEditor(body.querySelector(".edit"), st);
+  }
+}
+addEventListener("click", e => { if (!e.target.closest(".menu")) document.querySelectorAll(".menu .pop").forEach(p => p.hidden = true); });
+function redetect(st) {
+  if (st.locked) return toast("這場勾了「已手動處理」，處理時會略過。要重新偵測請先取消勾選");
+  $("#urls").value = st.url || st.local_path || "";
+  for (const k of ["threshold", "min_len", "max_gap", "pad", "extend"]) if (st.params[k] != null) $("#" + k).value = st.params[k];
+  $("#force").checked = true;
+  showView("add");
+  $("#threshold").closest("details").open = true;
+  toast("已帶入網址。調整門檻後按「開始處理」，會用快取的分數，很快就好");
+}
+
+// ───────── 粉絲歌單：對照、手動輸入 ─────────
+function setlistHtml(st) {
+  const sl = st.setlist, hit = sl.entries.filter(e => e.n).length;
+  const outside = st.songs.filter(s => s.in_setlist === false).map(s => `第 ${s.n} 首（${fmtT(s.start)}）`);
+  return `<h2>${{ holodex: "Holodex 歌曲標記", manual: "手動輸入的歌單", comments: "粉絲留言裡的歌單" }[st.setlist_source] || "粉絲歌單"}</h2>
+    <div class="hint" style="margin:0 0 8px">${sl.entries.length} 項，對上 ${hit} 項。
+      ${outside.length ? `<b>不在歌單裡的段落：</b>${outside.join("、")}（可能不是歌，也可能是粉絲漏寫）` : "每一段都在歌單裡。"}</div>
+    <table><thead><tr><th>時間</th><th>歌名 / 原唱</th><th>對照</th></tr></thead><tbody>${sl.entries.map(e => `
+      <tr class="${e.n ? "" : "miss"}"><td class="tm">
+        ${st.source ? `<button class="btn xs" data-sl-play="${e.t}" title="從這裡播放原始音訊">▶</button>` : ""}
+        ${st.url ? `<a href="${esc(st.url)}&t=${Math.floor(e.t)}s" target="_blank" rel="noopener">${fmtT(e.t)}</a>` : fmtT(e.t)}</td>
+        <td>${esc(e.title)}${e.artist ? `<small>${esc(e.artist)}</small>` : ""}</td>
+        <td class="st">${e.n ? `✔ 第 ${e.n} 首` : "✘ 沒對上"}</td></tr>`).join("")}</tbody></table>
+    ${sl.texts.length ? `<details><summary>原始留言（${sl.texts.length} 則）</summary>${sl.texts.map(t => `<pre>${esc(t)}</pre>`).join("")}</details>` : ""}`;
+}
+function setlistInputHtml(st) {
+  const old = st.setlist_manual ? (st.setlist?.texts || []).join("\n") : "";
+  return `<div class="slinput"><h2>${st.setlist_manual ? "修改手動輸入的歌單" : "手動輸入歌單"}</h2>
+    <div class="hint" style="margin:0 0 8px">貼上從別的地方拿到的歌單，一行一首，要有開始時間，例如「4:38 プロポーズ / なとり」或「0:04:37～0:07:34 プロポーズ」。
+      會完全照它切，「重新辨識」也不會蓋掉；清空再套用可以移除。${st.locked ? "<br><b>這場勾了「已手動處理」，要套用請先取消勾選。</b>" : ""}</div>
+    <textarea data-sl="text" placeholder="4:38 プロポーズ / なとり&#10;13:13 Overdose / なとり">${esc(old)}</textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn sm" data-sl="preview">預覽</button>
+      <button class="btn sm primary" data-sl="apply" ${st.locked ? "disabled" : ""}>套用並重新切檔</button>
+      <span class="hint" data-sl="msg"></span>
+    </div>
+    <div data-sl="out" class="setlist" style="margin-top:10px"></div></div>`;
+}
+function bindSetlistInput(el, st) {
+  const box = el.querySelector(".slinput"), ta = box.querySelector('[data-sl="text"]');
+  const msg = box.querySelector('[data-sl="msg"]'), outEl = box.querySelector('[data-sl="out"]');
+  box.querySelector('[data-sl="preview"]').onclick = async () => {
+    try {
+      const { entries } = await api("/api/setlist/preview", { text: ta.value });
+      msg.textContent = entries.length ? `讀到 ${entries.length} 首，請確認時間和歌名沒讀錯` : "一首都沒讀到：每一行要有時間";
+      outEl.innerHTML = entries.length ? `<table><thead><tr><th>開始</th><th>結束</th><th>歌名 / 原唱</th></tr></thead><tbody>${entries.map(e => `
+        <tr><td class="tm">${fmtT(e.t)}</td><td class="tm">${e.end ? fmtT(e.end) : "—"}</td>
+        <td>${esc(e.title)}${e.artist ? `<small>${esc(e.artist)}</small>` : ""}</td></tr>`).join("")}</tbody></table>` : "";
+    } catch (e) { toast(e.message); }
+  };
+  box.querySelector('[data-sl="apply"]').onclick = async () => {
+    if (!ta.value.trim() && !st.setlist_manual) return toast("請先貼上歌單");
+    if (!ta.value.trim() && !confirm("要移除這場手動輸入的歌單嗎？")) return;
+    try {
+      stopIfPlaying(st);
+      await api("/api/setlist", { dir: st.dir, text: ta.value });
+      toast("已儲存，正在照歌單重新切檔…");
+      startPolling();
+    } catch (e) { toast(e.message); }
+  };
+}
+
+// ───────── 頻譜（看圖） ─────────
+const specCache = new Map();
+function loadSpec(dir, t, kind, mark) {
+  const key = dir + "|" + kind + "|" + t.toFixed(2);
+  if (!specCache.has(key)) {
+    specCache.set(key, api(`/api/spec?dir=${encodeURIComponent(dir)}&t=${t.toFixed(2)}&before=8&after=8`
+                           + (kind && mark != null ? `&kind=${kind}&m=${mark.toFixed(2)}` : ""))
+      .catch(e => { specCache.delete(key); throw e; }));
+    if (specCache.size > 80) specCache.delete(specCache.keys().next().value);
+  }
+  return specCache.get(key);
+}
+const SPEC_LUT = (() => {          // 黑 → 深藍 → 藍 → 青 → 白（配合深海藍主題）
+  const stops = [[3, 7, 13], [10, 30, 70], [24, 84, 160], [48, 170, 220], [140, 225, 245], [245, 252, 255]];
+  const lut = [];
+  for (let v = 0; v < 256; v++) {
+    const x = v / 255 * (stops.length - 1), k = Math.min(stops.length - 2, Math.floor(x)), f = x - k;
+    lut.push(stops[k].map((c, j) => Math.round(c + (stops[k + 1][j] - c) * f)));
+  }
+  return lut;
+})();
+function specImage(d) {
+  if (d._img) return d._img;
+  const bytes = Uint8Array.from(atob(d.spec), c => c.charCodeAt(0));
+  const off = document.createElement("canvas");
+  off.width = Math.max(1, d.frames); off.height = d.bins;
+  const ctx = off.getContext("2d"), im = ctx.createImageData(off.width, d.bins);
+  for (let x = 0; x < d.frames; x++) for (let y = 0; y < d.bins; y++) {
+    const [r, g, b] = SPEC_LUT[bytes[x * d.bins + y]], o = ((d.bins - 1 - y) * off.width + x) * 4;
+    im.data[o] = r; im.data[o + 1] = g; im.data[o + 2] = b; im.data[o + 3] = 255;
+  }
+  ctx.putImageData(im, 0, 0);
+  return d._img = off;
+}
+function drawSpec(cv, d, mark, hover, play, sel) {
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth || 600, H = cv.clientHeight || 210;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const g = cv.getContext("2d");
+  if (!g) return;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.fillStyle = "#03070d"; g.fillRect(0, 0, W, H);
+  if (!d || !d.frames) return;
+  const span = d.frames * d.step, X = t => (t - d.t0) / span * W, plotH = H - 16;
+  g.drawImage(specImage(d), 0, 0, W, plotH);
+  g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 1; g.beginPath();          // 音量
+  d.db.forEach((v, k) => {
+    const x = (k + 0.5) / d.frames * W, y = plotH * (1 - (Math.max(-70, Math.min(-5, v)) + 70) / 65);
+    k ? g.lineTo(x, y) : g.moveTo(x, y);
+  });
+  g.stroke();
+  g.fillStyle = "#0c1320"; g.fillRect(0, plotH, W, 16);                              // 時間刻度
+  g.font = "10px system-ui, sans-serif"; g.textBaseline = "top";
+  for (let s = Math.ceil(d.t0); s <= d.t0 + span; s++) {
+    g.fillStyle = "rgba(255,255,255,.4)"; g.fillRect(X(s), plotH, 1, s % 2 ? 3 : 6);
+    if (s % 2 === 0) { g.fillStyle = "rgba(226,232,242,.85)"; g.fillText(fmtT(s), X(s) + 2, plotH + 3); }
+  }
+  const line = (t, color, w, dash) => {
+    if (t == null || isNaN(t) || t < d.t0 || t > d.t0 + span) return;
+    g.save(); g.strokeStyle = color; g.lineWidth = w; g.setLineDash(dash || []);
+    g.beginPath(); g.moveTo(X(t), 0); g.lineTo(X(t), plotH); g.stroke(); g.restore();
+  };
+  line(play, "#4ade80", 2);
+  line(mark, "#ff5c8a", 2.5);
+  for (const c of d.cands || []) {                                                    // 候選切點
+    if (c.t < d.t0 || c.t > d.t0 + span) continue;
+    const x = X(c.t), r = 6 + Math.min(7, c.len * 6), on = sel != null && Math.abs(sel - c.t) < 0.01;
+    line(c.t, on ? "#ffb84d" : "rgba(255,184,77,.4)", on ? 2 : 1, on ? [] : [2, 4]);
+    g.fillStyle = on ? "#ffb84d" : "rgba(255,184,77,.85)";
+    g.strokeStyle = "rgba(0,0,0,.6)"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x - r, 1); g.lineTo(x + r, 1); g.lineTo(x, 1 + r * 1.6); g.closePath(); g.fill(); g.stroke();
+  }
+  if (hover != null) {
+    line(hover, "rgba(255,255,255,.9)", 1, [4, 3]);
+    const label = fmtFull(hover);
+    g.font = "11px system-ui, sans-serif";
+    const tw = g.measureText(label).width;
+    let x = X(hover) + 4;
+    if (x + tw + 6 > W) x = X(hover) - tw - 8;
+    g.fillStyle = "rgba(0,0,0,.75)"; g.fillRect(x - 2, 2, tw + 6, 16);
+    g.fillStyle = "#fff"; g.fillText(label, x + 1, 4);
+  }
+}
+
+// ───────── 整場縮圖（分數 ＋ 每首的位置） ─────────
+const scoreCache = new Map();
+async function loadScores(st) {
+  if (!st.has_scores) return null;
+  if (!scoreCache.has(st.dir)) scoreCache.set(st.dir, fetch(fileUrl(st.dir + "/scores.csv")).then(r => r.text())
+    .then(t => t.trim().split(/\r?\n/).slice(1).map(l => { const c = l.split(","); return [+c[1], +c[5]]; })).catch(() => null));
+  return scoreCache.get(st.dir);
+}
+function drawOverview(cv, rows, scores, active, play, flagged) {
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth || 800, H = cv.clientHeight || 54;
+  if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const g = cv.getContext("2d");
+  if (!g) return null;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+  const ends = rows.map(r => parseT(r.end)).filter(v => !isNaN(v));
+  const tMax = Math.max(scores?.length ? scores[scores.length - 1][0] + 3 : 0, ...ends, 60) + 30;
+  const X = t => t / tMax * W;
+  if (scores) {                                                       // 分數（淡）
+    g.strokeStyle = "rgba(135,150,173,.45)"; g.lineWidth = 1; g.beginPath();
+    scores.forEach(([t, v], i) => { const y = H - 4 - (Math.max(-1, Math.min(2, v)) + 1) / 3 * (H - 8); i ? g.lineTo(X(t), y) : g.moveTo(X(t), y); });
+    g.stroke();
+  }
+  g.font = "10px system-ui, sans-serif"; g.textBaseline = "middle"; g.textAlign = "center";
+  rows.forEach((r, i) => {                                            // 每首
+    const a = parseT(r.start), z = parseT(r.end);
+    if (isNaN(a) || isNaN(z) || z <= a) return;
+    const x = X(a), w = Math.max(2, X(z) - X(a)), on = i === active;
+    g.fillStyle = on ? "rgba(76,194,255,.75)" : flagged[i] ? "rgba(255,184,77,.38)" : "rgba(76,194,255,.25)";
+    g.fillRect(x, 6, w, H - 12);
+    if (on) { g.strokeStyle = "#4cc2ff"; g.lineWidth = 2; g.strokeRect(x, 6, w, H - 12); }
+    if (w > 16) { g.fillStyle = on ? "#04121f" : "rgba(226,232,242,.85)"; g.fillText(String(i + 1), x + w / 2, H / 2); }
+  });
+  if (play != null) { g.fillStyle = "#4ade80"; g.fillRect(X(play) - 1, 0, 2, H); }
+  return tMax;
+}
+
+// ───────── 時間軸編輯 ─────────
+// 編輯中的內容存在這裡（不是只存在畫面上），換場次、重畫畫面都不會不見；也用來做復原 / 重做
+const editState = new Map();
+const HEAR_END = 3;              // 聽尾：從結束時間前幾秒播到結束時間
+const editor = {};               // 目前打開的編輯器提供給快捷鍵的功能（fill / play / cand / move / save / undo）
+let lastEditor = null;           // 目前打開的編輯器是哪一場
+
+function songToRow(s) {
+  return { start: fmtFull(s.start), end: fmtFull(s.end), title: s.title || "", artist: s.artist || "",
+           lyrics: s.lyrics || "", by: s.by || "", origTitle: s.title || "", origArtist: s.artist || "",
+           origLen: s.orig_len || "", sel: false,
+           check: s.check || [], ok: !!s.ok, oStart: fmtFull(s.start), oEnd: fmtFull(s.end) };
+}
+function edState(st) {
+  if (!editState.has(st.dir)) editState.set(st.dir, { rows: st.songs.map(songToRow), history: [], future: [], dirty: false });
+  return editState.get(st.dir);
+}
+function blankRow(start, end) {
+  return { start: fmtFull(start), end: fmtFull(end), title: "", artist: "", lyrics: "", by: "",
+           origTitle: "", origArtist: "", origLen: "", sel: false, check: [], ok: false, oStart: "", oEnd: "" };
+}
+
+function editorHtml(st) {
+  return `<div class="edit">
+    <div class="etop">
+      <canvas class="ov" data-ov title=""></canvas>
+      <div class="ovlegend"><span>整場縮圖：</span><span><i class="sw" style="background:rgba(76,194,255,.4)"></i>歌</span>
+        <span><i class="sw" style="background:rgba(255,184,77,.6)"></i>切點可疑</span><span><i class="sw" style="background:#4cc2ff"></i>目前這首</span>
+        <span><i class="sw" style="background:#4ade80"></i>播放位置</span><span>點色塊跳到那首，點空白處從那裡播</span></div>
+      <div class="pos">
+        <span class="now">播放位置<b data-pos>—</b><span data-pos-how></span></span>
+        <span class="row" style="gap:4px;margin-left:auto">
+          <button class="btn sm" data-ed="nudge" data-d="-5">−5</button>
+          <button class="btn sm" data-ed="nudge" data-d="-1">−1</button>
+          <button class="btn sm" data-ed="nudge" data-d="-0.1">−0.1</button>
+          <button class="btn sm" data-ed="nudge" data-d="0.1">+0.1</button>
+          <button class="btn sm" data-ed="nudge" data-d="1">+1</button>
+          <button class="btn sm" data-ed="nudge" data-d="5">+5 秒</button>
+          ${st.source ? `<button class="btn sm" data-ed="play-src" title="從目前位置改播整場原始音訊">▶ 原始音訊</button>` : ""}
+        </span>
+      </div>
+      <div class="row edbar">
+        <button class="btn sm" data-ed="undo" title="復原（Ctrl+Z）">↶</button>
+        <button class="btn sm" data-ed="redo" title="重做（Ctrl+Y）">↷</button>
+        <span class="sep"></span>
+        <button class="btn sm" data-ed="merge-sel" title="把勾選的幾首合成一首（例如一首被切成三段）">⤓ 合併選取的</button>
+        <button class="btn sm danger" data-ed="del-sel">✕ 刪除選取的</button>
+        <span class="sep"></span>
+        <button class="btn sm" data-ed="add-pos" title="從目前播放位置新增一首（結尾先抓到下一首之前）">＋ 從播放位置新增</button>
+        <button class="btn sm" data-ed="add">＋ 新增</button>
+        <button class="btn sm" data-ed="sort">依時間排序</button>
+        ${st.source ? `<span class="sep"></span><button class="btn sm" data-ed="viewer" title="右邊的看圖面板">📈 看圖</button>` : ""}
+        <span class="dirty" data-ed-dirty hidden>● 尚未儲存</span><span class="spacer"></span>
+        <label class="row" style="gap:6px;font-size:13.5px;color:var(--muted)"><input type="checkbox" data-ed="merge" ${st.merged ? "checked" : ""}> 整場合輯</label>
+        <button class="btn sm" data-ed="save" title="儲存、重新切檔，標為已手動處理（Ctrl+S）">儲存</button>
+        <button class="btn sm primary" data-ed="save-next" title="儲存，然後打開待修清單的下一場（Ctrl+Enter）">儲存並修下一場 ⏎</button>
+      </div>
+    </div>
+    <div class="ewrap">
+      <div class="tbl"><table><thead><tr><th><input type="checkbox" data-ed="sel-all" title="全選"></th><th></th><th>開始</th><th>結束</th>
+        <th>歌名</th><th>原唱</th><th>長度／提醒</th><th></th></tr></thead><tbody></tbody></table></div>
+      <div class="viewer" data-viewer hidden>
+        <div class="vhead"><b data-v-title></b>
+          <div class="legend"><span><i class="sw" style="background:#ff5c8a"></i>切點</span><span><i class="sw" style="background:#ffb84d"></i>▼ 候選（附近的安靜，越大越像音軌換場）</span>
+            <span><i class="sw" style="background:#4ade80"></i>播放位置</span><span>白線：音量</span></div>
+          <div class="legend">點一下試聽（開頭從那裡播；結尾播到結束時間）· 雙擊／右鍵設成切點 · 點 ▼ 試聽「切在這裡」· <kbd>,</kbd> <kbd>.</kbd> 換候選、<kbd>Enter</kbd> 設定</div></div>
+        <div class="vgrid">${["start", "end"].map(f => `
+          <div class="vpane" data-f="${f}">
+            <div class="row vbar"><span>${f === "start" ? "開頭" : "結尾"} <b data-v-val>—</b></span>
+              <span class="row" style="gap:4px;margin-left:auto">
+                <button class="btn xs" data-v="pan" data-d="-5">◀ 5 秒</button>
+                <button class="btn xs" data-v="center">置中</button>
+                <button class="btn xs" data-v="pan" data-d="5">5 秒 ▶</button></span></div>
+            <canvas></canvas><div class="vmsg hint"></div>
+          </div>`).join("")}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function rowHtml(r, i, last) {
+  return `<tr data-i="${i}" title="${r.lyrics ? "聽到的歌詞：" + esc(r.lyrics) : ""}">
+    <td><input type="checkbox" data-k="sel" ${r.sel ? "checked" : ""}></td>
+    <td class="num">${i + 1}</td>
+    <td class="tm"><span class="tmw"><input type="text" data-k="start" value="${esc(r.start)}"><button class="btn sm" data-ed="set" data-to="start" title="填入播放位置（Alt+1）">⏱</button><button class="btn sm hear" data-ed="hear-start" title="從開始時間播">▶ 聽頭</button></span></td>
+    <td class="tm"><span class="tmw"><input type="text" data-k="end" value="${esc(r.end)}"><button class="btn sm" data-ed="set" data-to="end" title="填入播放位置（Alt+2）">⏱</button><button class="btn sm hear" data-ed="hear-end" title="從結束前 3 秒播到結束時間就停">▶ 聽尾</button><button class="btn sm hear" data-ed="hear-after" title="從結束那一刻往後播，聽切點之後還有沒有歌">聽後 ▶</button></span></td>
+    <td><input type="text" data-k="title" value="${esc(r.title)}" placeholder="（未命名）"></td>
+    <td><input type="text" data-k="artist" value="${esc(r.artist)}"></td>
+    <td class="info" data-info></td>
+    <td class="ops">
+      ${r.lyrics ? `<a class="btn sm" href="${lyricSearch(r.lyrics)}" target="_blank" rel="noopener" title="用聽到的歌詞搜尋：${esc(r.lyrics)}">🔍</a>` : ""}
+      <button class="btn sm" data-ed="split" title="在播放位置切成兩首">✂</button>
+      ${last ? "" : `<button class="btn sm" data-ed="merge-next" title="跟下一首合成一首">⤓</button>`}
+      <button class="btn sm danger" data-ed="del" title="刪除這首">✕</button>
+    </td></tr>`;
+}
+
+function bindEditor(box, st) {
+  const tbody = box.querySelector("tbody"), ovCv = box.querySelector("[data-ov]");
+  const S = edState(st);
+  let scores = null, ovMax = 0;
+  loadScores(st).then(s => { scores = s; drawOv(); });
+
+  // 畫面 → S.rows（只更新會被打字改到的欄位）
+  const read = () => {
+    tbody.querySelectorAll("tr").forEach(tr => {
+      const r = S.rows[+tr.dataset.i];
+      if (!r) return;
+      for (const k of ["start", "end", "title", "artist"]) r[k] = tr.querySelector(`[data-k="${k}"]`).value;
+      r.sel = tr.querySelector('[data-k="sel"]').checked;
+    });
+  };
+  const visibleChecks = r => !st.locked && !r.ok && r.start === r.oStart && r.end === r.oEnd ? r.check || [] : [];
+  const drawOv = () => { ovMax = drawOverview(ovCv, S.rows, scores, S.active, streamPos(st.dir), S.rows.map(r => visibleChecks(r).length > 0)) || ovMax; };
+  const render = () => {
+    tbody.innerHTML = S.rows.map((r, i) => rowHtml(r, i, i === S.rows.length - 1)).join("");
+    markActive();
+    refresh();
+  };
+  // 長度、原曲長度、提醒；按鈕狀態
+  const refresh = () => {
+    [...tbody.querySelectorAll("tr")].forEach((tr, i) => {
+      const r = S.rows[i], a = parseT(r.start), z = parseT(r.end), cell = tr.querySelector("[data-info]");
+      const warn = [];
+      let text = "—";
+      if (!isNaN(a) && !isNaN(z)) {
+        const dur = z - a;
+        text = dur > 0 ? fmtT(dur) : "—";
+        if (dur <= 0) warn.push("結束早於開始");
+        else if (dur < 45) warn.push("很短");
+        else if (dur > 480) warn.push("很長，可能是兩首");
+        if (r.origLen && dur > 0 && dur < r.origLen * 0.7) warn.push("比原曲短");
+        const prev = S.rows[i - 1] && parseT(S.rows[i - 1].end);
+        if (i > 0 && !isNaN(prev) && a < prev - 0.5) warn.push("跟上一首重疊");
+      } else warn.push("時間格式不對");
+      const checks = visibleChecks(r);
+      cell.innerHTML = `${text}${r.origLen ? `<small>原曲 ${fmtT(r.origLen)}</small>` : ""}${warn.map(w => `<span class="tag">${w}</span>`).join("")}`
+        + checkTag(checks) + (checks.length ? ` <button class="btn xs" data-ed="ok" title="聽過、看過，切點沒問題：之後不再標">✓ 沒問題</button>` : "");
+      tr.classList.toggle("warn", warn.length > 0 || checks.length > 0);
+      for (const k of ["start", "end"]) tr.querySelector(`[data-k="${k}"]`).classList.toggle("bad", isNaN(parseT(r[k])));
+    });
+    box.querySelector('[data-ed="undo"]').disabled = !S.history.length;
+    box.querySelector('[data-ed="redo"]').disabled = !S.future.length;
+    box.querySelector("[data-ed-dirty]").hidden = !S.dirty;
+    drawOv();
+    drawViewer();
+    const item = $(`#fixItems .fitem[data-dir="${qa(st.dir)}"] .m`);
+    if (item && !!item.querySelector(".dirty") !== S.dirty) renderFixList();
+  };
+  // 改之前先存一份，給復原用
+  const snapshot = () => {
+    read();
+    S.history.push(JSON.stringify(S.rows));
+    if (S.history.length > 200) S.history.shift();
+    S.future = [];
+    S.dirty = true;
+  };
+  const posOrWarn = () => {
+    const pos = streamPos(st.dir);
+    if (pos == null) toast("先播放這場的歌或原始音訊（空白鍵），拖到想要的位置");
+    return pos;
+  };
+  const flash = input => {
+    if (!input) return;
+    input.classList.remove("bad"); input.classList.add("flash");
+    setTimeout(() => input.classList.remove("flash"), 600);
+  };
+  const byStart = (x, y) => (parseT(x.start) || 0) - (parseT(y.start) || 0);
+  const markActive = () => tbody.querySelectorAll("tr").forEach((tr, k) => tr.classList.toggle("active", k === S.active));
+  const select = (i, scroll) => {
+    if (!S.rows[i]) return;
+    S.active = i; markActive(); drawOv();
+    if (S.view.open) drawViewer();
+    if (scroll) tbody.querySelector(`tr[data-i="${i}"]`)?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+  };
+
+  // ── 看圖：目前這一首開頭、結尾前後 8 秒的頻譜 ──
+  const viewer = box.querySelector("[data-viewer]");
+  if (!S.view) {                                         // 預設打開（有原始音訊才能看圖），先看第一首
+    S.view = { open: !!st.source, row: null, center: {}, panned: {} };
+    if (S.active == null && S.rows.length) S.active = 0;
+  }
+  const drawViewer = async () => {
+    viewer.hidden = !S.view.open;
+    box.querySelector(".ewrap").classList.toggle("split", S.view.open);
+    box.querySelector('[data-ed="viewer"]')?.classList.toggle("on", S.view.open);
+    const hdr = document.querySelector("header")?.offsetHeight || 56;
+    box.style.setProperty("--vtop", hdr + (box.querySelector(".etop")?.offsetHeight || 160) + 10 + "px");
+    if (!S.view.open) return;
+    const i = S.rows[S.active] ? S.active : null;
+    if (S.view.row !== i) { S.view.row = i; S.view.center = {}; S.view.panned = {}; }
+    viewer.querySelector("[data-v-title]").textContent = i == null ? "先點一首" : `第 ${i + 1} 首　${S.rows[i].title || "（未命名）"}`;
+    for (const pane of viewer.querySelectorAll(".vpane")) {
+      if (S.view.row !== i) return;                              // 等頻譜的時候換了別首：交給新的那次畫
+      const f = pane.dataset.f, cv = pane.querySelector("canvas"), msg = pane.querySelector(".vmsg");
+      const row = i == null ? null : S.rows[i];                  // 等的時候這首可能被合併、刪掉了
+      const t = row ? parseT(row[f]) : NaN;
+      pane.querySelector("[data-v-val]").textContent = isNaN(t) ? "—" : fmtFull(t);
+      pane._mark = isNaN(t) ? null : t;
+      if (isNaN(t)) { pane._data = null; drawSpec(cv, null); continue; }
+      let c = S.view.center[f];
+      if (c == null || (!S.view.panned[f] && (t < c - 7.5 || t > c + 7.5))) c = S.view.center[f] = t;   // 切點跑出畫面就重新置中
+      if (pane._data && pane._c === c) { drawSpec(cv, pane._data, pane._mark, pane._hover, streamPos(st.dir), pane._sel); continue; }
+      msg.textContent = "載入中…";
+      try {
+        const data = await loadSpec(st.dir, c, f, t);
+        if (S.view.center[f] !== c) continue;                     // 等的時候又換了
+        pane._data = data; pane._c = c; pane._sel = null; msg.textContent = data.cands?.length ? "" : "附近沒有候選切點（伴奏沒斷，靠試聽判斷）";
+        drawSpec(cv, data, pane._mark, pane._hover, streamPos(st.dir), pane._sel);
+      } catch (err) { msg.textContent = "讀不到音訊：" + err.message; }
+    }
+  };
+  // 原始音訊已經在播就直接跳過去，不重新載入
+  const seekSource = (from, stopAt) => {
+    if (!st.source) return toast("找不到原始音訊（source.*）");
+    const it = queue[qi];
+    if (it && it.key === "src:" + st.dir && audio.src) {
+      it.stopAt = stopAt; audio.currentTime = Math.max(0, from - it.offset);
+      audio.play().catch(() => {}); updatePositions(); watchStop();
+    } else playSource(st, Math.max(0, from), stopAt);
+  };
+  viewer.querySelectorAll(".vpane").forEach(pane => {
+    const cv = pane.querySelector("canvas"), f = pane.dataset.f;
+    const tAt = e => {
+      const d = pane._data, rc = cv.getBoundingClientRect();
+      return d && rc.width ? d.t0 + (e.clientX - rc.left) / rc.width * d.frames * d.step : null;
+    };
+    const redraw = () => drawSpec(cv, pane._data, pane._mark, pane._hover, streamPos(st.dir), pane._sel);
+    const candAt = e => {                                           // 滑鼠附近（8px 內）的候選切點
+      const d = pane._data, rc = cv.getBoundingClientRect();
+      if (!d || !rc.width || !d.cands) return null;
+      const px = e.clientX - rc.left, span = d.frames * d.step;
+      let best = null;
+      for (const c of d.cands) {
+        const dx = Math.abs((c.t - d.t0) / span * rc.width - px);
+        if (dx <= 8 && (!best || dx < best.dx)) best = { t: c.t, dx };
+      }
+      return best && best.t;
+    };
+    // 試聽候選：開頭從候選播；結尾從候選前 HEAR_END 秒播到候選（聽「切在這裡」的樣子）
+    pane._preview = c => { pane._sel = c; redraw(); seekSource(f === "end" ? c - HEAR_END : c, f === "end" ? c : null); };
+    pane._apply = c => {
+      const i = S.rows[S.active] ? S.active : null;
+      if (c == null || i == null) return;
+      pane._sel = null;                                        // 設好了：下一次 , . 從新的切點開始找
+      snapshot();
+      S.rows[i][f] = fmtFull(c);
+      render();
+      flash(tbody.querySelector(`tr[data-i="${i}"] [data-k="${f}"]`));
+      toast(`第 ${i + 1} 首的${f === "start" ? "開始" : "結束"}：${fmtFull(c)}`);
+    };
+    const setCut = e => { const c = candAt(e) ?? tAt(e); if (c != null) pane._apply(c); };   // 靠近候選就吸附
+    cv.addEventListener("mousemove", e => { pane._hover = tAt(e); cv.style.cursor = candAt(e) != null ? "pointer" : ""; redraw(); });
+    cv.addEventListener("mouseleave", () => { pane._hover = null; redraw(); });
+    cv.addEventListener("mouseenter", () => { S.view.pane = f; });
+    cv.addEventListener("click", e => {
+      S.view.pane = f;
+      const c = candAt(e);
+      if (c != null) return pane._preview(c);
+      pane._sel = null;
+      const t = tAt(e);
+      // 開頭從點的地方播；結尾從點的地方播到結束時間就停（點在結束時間之後就一直播）
+      if (t != null) seekSource(t, f === "end" && pane._mark != null && pane._mark > t ? pane._mark : null);
+    });
+    cv.addEventListener("dblclick", e => { e.preventDefault(); setCut(e); });
+    cv.addEventListener("contextmenu", e => { e.preventDefault(); setCut(e); });
+  });
+  viewer.addEventListener("click", e => {
+    const b = e.target.closest("[data-v]"), i = S.rows[S.active] ? S.active : null;
+    if (!b || i == null) return;
+    const f = b.closest(".vpane").dataset.f;
+    if (b.dataset.v === "pan") { S.view.center[f] = (S.view.center[f] ?? parseT(S.rows[i][f])) + +b.dataset.d; S.view.panned[f] = true; }
+    else { S.view.center[f] = null; S.view.panned[f] = false; }
+    drawViewer();
+  });
+  // 整場縮圖：點色塊跳到那首，點空白處從那裡播
+  const ovAt = e => { const rc = ovCv.getBoundingClientRect(); return rc.width && ovMax ? (e.clientX - rc.left) / rc.width * ovMax : null; };
+  const ovSong = t => S.rows.findIndex(r => parseT(r.start) <= t && t <= parseT(r.end));
+  ovCv.addEventListener("mousemove", e => {
+    const t = ovAt(e); if (t == null) return;
+    const i = ovSong(t);
+    ovCv.title = `${fmtT(t)}${i >= 0 ? `　第 ${i + 1} 首 ${S.rows[i].title || ""}` : "　（點一下從這裡播）"}`;
+  });
+  ovCv.addEventListener("click", e => {
+    const t = ovAt(e); if (t == null) return;
+    read();
+    const i = ovSong(t);
+    if (i >= 0) select(i, true); else seekSource(t, null);
+  });
+  // 播放中：綠線跟著動
+  const tick = () => {
+    if (!box.isConnected) return;
+    if (!audio.paused) {
+      drawOv();
+      if (S.view.open) viewer.querySelectorAll(".vpane").forEach(p => p._data && drawSpec(p.querySelector("canvas"), p._data, p._mark, p._hover, streamPos(st.dir), p._sel));
+    }
+    setTimeout(tick, 100);
+  };
+  tick();
+
+  render();
+
+  tbody.addEventListener("focusin", e => { const tr = e.target.closest("tr"); if (tr && S.active !== +tr.dataset.i) select(+tr.dataset.i); });
+  tbody.addEventListener("click", e => { const tr = e.target.closest("tr"); if (tr && S.active !== +tr.dataset.i) select(+tr.dataset.i); });
+
+  // ── 給快捷鍵用的功能 ──
+  lastEditor = st.dir;
+  editor.fill = field => {
+    const pos = posOrWarn();
+    if (pos == null) return;
+    read();
+    let i = S.active;
+    if (i == null || !S.rows[i]) {
+      i = S.rows.findIndex(r => parseT(r.start) <= pos && pos <= parseT(r.end));
+      if (i < 0) return toast("先點一下要填的那一首");
+    }
+    const focused = document.activeElement?.closest?.(`tr[data-i="${i}"]`) ? document.activeElement.dataset.k : null;
+    snapshot();
+    S.rows[i][field] = fmtFull(pos);
+    S.active = i;
+    render();
+    flash(tbody.querySelector(`tr[data-i="${i}"] [data-k="${field}"]`));
+    if (focused) tbody.querySelector(`tr[data-i="${i}"] [data-k="${focused}"]`)?.focus();
+    toast(`第 ${i + 1} 首的${field === "start" ? "開始" : "結束"}：${fmtFull(pos)}`);
+  };
+  editor.cand = key => {
+    if (!S.view.open) return false;
+    const pane = viewer.querySelector(`.vpane[data-f="${S.view.pane || "end"}"]`);
+    const cands = (pane?._data?.cands || []).map(c => c.t).sort((x, y) => x - y);
+    if (key === "Enter") {
+      if (pane?._sel == null) return false;
+      pane._apply(pane._sel); return true;
+    }
+    if (!cands.length) { toast("這張圖附近沒有候選切點"); return true; }
+    const ref = pane._sel ?? pane._mark ?? cands[0];
+    const c = key === "." ? cands.find(x => x > ref + 0.01) ?? cands[cands.length - 1]
+                          : [...cands].reverse().find(x => x < ref - 0.01) ?? cands[0];
+    pane._preview(c);
+    const k = cands.indexOf(c), len = pane._data.cands.find(x => x.t === c)?.len;
+    toast(`${pane.dataset.f === "start" ? "開頭" : "結尾"}候選 ${k + 1}/${cands.length}：${fmtFull(c)}（安靜 ${len} 秒）· Enter 設成切點`);
+    return true;
+  };
+  editor.play = () => {
+    if (!st.source) return toast("找不到原始音訊（source.*）");
+    read();
+    const i = S.rows[S.active] ? S.active : 0, t = parseT(S.rows[i]?.start ?? "");
+    playSource(st, isNaN(t) ? 0 : t);
+  };
+  editor.move = d => { read(); select(Math.max(0, Math.min(S.rows.length - 1, (S.active ?? -1) + d)), true); };
+  editor.save = next => box.querySelector(`[data-ed="${next ? "save-next" : "save"}"]`).click();
+  editor.undo = redo => box.querySelector(`[data-ed="${redo ? "redo" : "undo"}"]`).click();
+
+  // 打字：開始編輯某個欄位時記下原本的樣子，改完（change）才放進復原紀錄
+  let pending = null;
+  tbody.addEventListener("focusin", e => { if (e.target.matches('input[type="text"]')) { read(); pending = JSON.stringify(S.rows); } });
+  tbody.addEventListener("change", e => {
+    if (e.target.matches('input[type="text"]') && pending) { S.history.push(pending); S.future = []; pending = null; }
+    read(); S.dirty = true; refresh();
+  });
+  tbody.addEventListener("input", () => { read(); S.dirty = true; refresh(); });
+  // 時間欄位：↑↓ 調 0.1 秒（Shift 1 秒、Alt 0.01 秒）
+  tbody.addEventListener("keydown", e => {
+    const inp = e.target;
+    if (!inp.matches('[data-k="start"], [data-k="end"]') || !["ArrowUp", "ArrowDown"].includes(e.key)) return;
+    const t = parseT(inp.value);
+    if (isNaN(t)) return;
+    e.preventDefault(); e.stopPropagation();
+    if (!pending) { read(); pending = JSON.stringify(S.rows); }
+    inp.value = fmtFull(Math.max(0, t + (e.key === "ArrowUp" ? 1 : -1) * (e.shiftKey ? 1 : e.altKey ? 0.01 : 0.1)));
+    read(); S.dirty = true; refresh();
+  });
+
+  box.onclick = async e => {
+    const b = e.target.closest("[data-ed]");
+    if (!b || b.disabled) return;
+    const tr = b.closest("tr"), i = tr ? +tr.dataset.i : -1, act = b.dataset.ed;
+    if (act === "sel-all") {
+      read(); S.rows.forEach(r => r.sel = b.checked); render();
+    } else if (act === "undo" || act === "redo") {
+      read();
+      const from = act === "undo" ? S.history : S.future, to = act === "undo" ? S.future : S.history;
+      if (!from.length) return;
+      to.push(JSON.stringify(S.rows));
+      S.rows = JSON.parse(from.pop());
+      S.dirty = true; render();
+    } else if (act === "add") {
+      snapshot();
+      const last = S.rows.map(r => parseT(r.end)).filter(v => !isNaN(v)).pop() || 0;
+      S.rows.push(blankRow(last + 30, last + 270)); S.active = S.rows.length - 1; render();
+    } else if (act === "add-pos") {
+      const pos = posOrWarn();
+      if (pos == null) return;
+      snapshot();
+      const next = S.rows.map(r => parseT(r.start)).filter(v => !isNaN(v) && v > pos + 1).sort((x, y) => x - y)[0];
+      const row = blankRow(pos, Math.min(pos + 240, next ? next - 1 : pos + 240));
+      S.rows.push(row); S.rows.sort(byStart); S.active = S.rows.indexOf(row); render();
+      toast("已新增，記得填歌名、確認結尾");
+    } else if (act === "sort") {
+      snapshot(); S.rows.sort(byStart); render();
+    } else if (act === "del") {
+      snapshot(); S.rows.splice(i, 1); render();
+    } else if (act === "del-sel") {
+      read();
+      if (!S.rows.some(r => r.sel)) return toast("先勾選要刪除的");
+      snapshot(); S.rows = S.rows.filter(r => !r.sel); render();
+    } else if (act === "merge-next" || act === "merge-sel") {
+      read();
+      const idx = act === "merge-next" ? [i, i + 1] : S.rows.map((r, k) => r.sel ? k : -1).filter(k => k >= 0);
+      if (idx.length < 2) return toast("至少勾選兩首才能合併");
+      snapshot();
+      const group = idx.map(k => S.rows[k]).sort(byStart);
+      const starts = group.map(r => parseT(r.start)).filter(v => !isNaN(v)), ends = group.map(r => parseT(r.end)).filter(v => !isNaN(v));
+      const named = group.find(r => r.title.trim()) || group[0];        // 歌名：第一個有填的
+      const merged = { ...named, start: fmtFull(Math.min(...starts)), end: fmtFull(Math.max(...ends)),
+                       lyrics: group.map(r => r.lyrics).find(Boolean) || "", sel: false };
+      const first = Math.min(...idx);
+      S.rows = S.rows.filter((r, k) => !idx.includes(k));
+      S.rows.splice(first, 0, merged); S.active = first;
+      render();
+      toast(`已合併 ${group.length} 首`);
+    } else if (act === "split") {
+      read();
+      const pos = posOrWarn();
+      if (pos == null) return;
+      const r = S.rows[i], a = parseT(r.start), z = parseT(r.end);
+      if (!(pos > a + 1 && pos < z - 1)) return toast(`播放位置（${fmtFull(pos)}）不在這首的範圍內`);
+      snapshot();
+      S.rows.splice(i, 1, { ...S.rows[i], end: fmtFull(pos), sel: false }, blankRow(pos, z));
+      render();
+      toast("已切開，後半段請填歌名");
+    } else if (act === "ok") {
+      snapshot(); S.rows[i].ok = true; render();
+    } else if (act === "viewer") {
+      S.view.open = !S.view.open;
+      if (S.view.open && !S.rows[S.active]) S.active = 0;
+      markActive(); drawViewer();
+    } else if (act === "set") {
+      const pos = posOrWarn();
+      if (pos == null) return;
+      snapshot();
+      S.rows[i][b.dataset.to] = fmtFull(pos);
+      render();
+      flash(tbody.querySelector(`tr[data-i="${i}"] [data-k="${b.dataset.to}"]`));
+    } else if (act === "nudge") {
+      if (streamPos(st.dir) == null) return toast("先播放這場的歌或原始音訊");
+      audio.currentTime = Math.max(0, Math.min(audio.duration || Infinity, audio.currentTime + +b.dataset.d));
+      updatePositions();
+    } else if (act === "play-src") {
+      read();
+      const first = parseT(S.rows[S.active]?.start ?? S.rows[0]?.start ?? "");
+      playSource(st, streamPos(st.dir) ?? (isNaN(first) ? 0 : first));
+    } else if (act === "hear-start" || act === "hear-end" || act === "hear-after") {
+      read();
+      const t = parseT(S.rows[i][act === "hear-start" ? "start" : "end"]);
+      if (isNaN(t)) return toast("時間格式不正確");
+      // 聽頭：從開始時間；聽尾：結束前 HEAR_END 秒播到結束時間就停；聽後：從結束那一刻往後
+      if (act === "hear-end") seekSource(t - HEAR_END, t); else seekSource(t, null);
+    } else if (act === "save" || act === "save-next") {
+      read();
+      const songs = [];
+      let bad = false;
+      [...S.rows].sort(byStart).forEach(r => {
+        const a = parseT(r.start), z = parseT(r.end);
+        if (isNaN(a) || isNaN(z) || a >= z) bad = true;
+        const title = r.title.trim(), artist = r.artist.trim();
+        const edited = title !== (r.origTitle || "") || artist !== (r.origArtist || "");      // 歌名、原唱改過 = 手動填的
+        const ok = r.ok || (r.oStart !== "" && (r.start !== r.oStart || r.end !== r.oEnd));   // 時間改過、按過沒問題：人確認過
+        songs.push({ start: a, end: z, title, artist, lyrics: r.lyrics, by: edited ? "manual" : r.by,
+                     orig_len: edited ? null : (+r.origLen || null), ...(ok ? { ok: true } : {}) });
+      });
+      if (bad) { refresh(); return toast("有時間格式不正確，或結束早於開始（標紅色的那幾列）"); }
+      if (!songs.length && !confirm("要刪除這場的所有歌嗎？")) return;
+      // 下一場：待修清單裡排在這場後面的那一場（先算好，存檔後這場就不在待修裡了）
+      const order = fixCandidates().map(x => x.st.dir).filter(d => d === st.dir || !findStream(d)?.st.locked);
+      const k = order.indexOf(st.dir), nextDir = order.slice(k + 1).concat(order.slice(0, Math.max(0, k))).find(d => d !== st.dir);
+      try {
+        stopIfPlaying(st);
+        await api("/api/timeline", { dir: st.dir, songs, merge: box.querySelector('[data-ed="merge"]').checked });
+        // 先在畫面上更新成存好的樣子（重新切檔完成後會再從伺服器讀一次）
+        st.songs = songs.map((s, n) => ({ n: n + 1, start: s.start, end: s.end, title: s.title || null, artist: s.artist || null,
+          lyrics: s.lyrics, by: s.by, orig_len: s.orig_len, ok: !!s.ok, check: [], file: null, in_setlist: null }));
+        st.locked = true;
+        editState.delete(st.dir);
+        renderTodoCount();
+        startPolling();
+        if (act === "save-next") {
+          if (nextDir) { toast("已儲存，正在重新切檔；打開下一場"); openFix(nextDir); }
+          else { toast("已儲存。待修清單都修完了 🎉"); renderFix(true); }
+        } else { toast("已儲存，正在重新切檔…（已標為已手動處理）"); renderFix(true); }
+      } catch (err) { toast(err.message); }
+    }
+  };
+}
+
+// ───────── 播放器 ─────────
+const audio = $("#audio");
+let queue = [], qi = -1;
+function playList(list, i) {
+  if (!list.length) return toast("沒有可以播放的歌");
+  queue = list; playAt(Math.max(0, i));
+}
+function playAt(i) {
+  if (i < 0 || i >= queue.length) return;
+  qi = i;
+  const it = queue[i];
+  audio.src = it.src;
+  if (it.start) audio.addEventListener("loadedmetadata", () => { audio.currentTime = it.start; }, { once: true });
+  audio.play().catch(() => {});
+  $("#nowA").textContent = it.title;
+  $("#nowB").textContent = `${it.sub}${queue.length > 1 ? `　(${i + 1}/${queue.length})` : ""}`;
+  document.title = `${it.title} · vsong`;
+  if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: it.title, artist: it.sub });
+  updateCtl(); markPlaying(); watchStop();
+}
+function playSource(st, t, stopAt = null) {
+  playList([{ key: "src:" + st.dir, src: fileUrl(st.source), title: "原始音訊", sub: st.title, start: t, dir: st.dir, offset: 0, stopAt }], 0);
+}
+function stopIfPlaying(st) {     // 重新切檔會覆寫音檔，先放掉檔案
+  if (queue[qi]?.key.startsWith(st.dir + "#")) { audio.pause(); audio.removeAttribute("src"); audio.load(); queue = []; qi = -1; updateCtl(); }
+}
+// 播到指定的時間就停（聽尾用）：timeupdate 一秒只觸發約 4 次，另外用計時器檢查，停得比較準
+let stopTimer = null;
+function watchStop() {
+  clearInterval(stopTimer);
+  const it = queue[qi];
+  if (!it || it.stopAt == null) return;
+  stopTimer = setInterval(() => {
+    const cur = queue[qi];
+    if (cur !== it) return clearInterval(stopTimer);
+    if (!audio.paused && it.offset + audio.currentTime >= it.stopAt) {
+      audio.pause();
+      audio.currentTime = Math.max(0, it.stopAt - it.offset);
+      it.stopAt = null;                      // 停過一次之後再按播放就照常往下播
+      clearInterval(stopTimer);
+    }
+  }, 50);
+}
+// 目前播放位置換算成「直播裡的時間」：原始音訊就是播放位置；切好的歌 = 那首的開始時間 + 播放位置
+function streamPos(dir) {
+  const it = queue[qi];
+  if (!it || it.dir !== dir || !audio.src) return null;
+  return it.offset + audio.currentTime;
+}
+function updatePositions() {
+  const it = queue[qi], b = $("#fixMain [data-pos]");
+  if (b) {
+    const pos = streamPos(state.fixDir);
+    b.textContent = pos == null ? "—" : fmtFull(pos);
+    $("#fixMain [data-pos-how]").textContent = pos == null ? "（按空白鍵從目前這首開頭播）"
+      : it.key.startsWith("src:") ? "原始音訊" : `「${it.title}」的 ${fmtFull(audio.currentTime)}，已換算成直播時間`;
+  }
+  $("#nowPos").textContent = it && it.dir ? `直播 ${fmtFull(it.offset + audio.currentTime)}` : "";
+}
+function updateCtl() { $("#prevBtn").disabled = qi <= 0; $("#nextBtn").disabled = qi < 0 || qi >= queue.length - 1; }
+function markPlaying() {
+  const key = queue[qi]?.key;
+  document.querySelectorAll(".song").forEach(li => {
+    const on = li.closest(".stream").dataset.dir + "#" + li.dataset.n === key;
+    li.classList.toggle("playing", on);
+    li.querySelector(".play").textContent = on && !audio.paused ? "❚❚" : "▶";
+  });
+}
+audio.onended = () => qi < queue.length - 1 && playAt(qi + 1);
+audio.onplay = audio.onpause = () => { $("#toggleBtn").textContent = audio.paused ? "▶" : "❚❚"; markPlaying(); };
+audio.ontimeupdate = audio.onseeked = updatePositions;
+$("#prevBtn").onclick = () => playAt(qi - 1);
+$("#nextBtn").onclick = () => playAt(qi + 1);
+$("#toggleBtn").onclick = () => { if (!audio.src) return toast("在歌庫點一首歌開始聽"); audio.paused ? audio.play() : audio.pause(); };
+if ("mediaSession" in navigator) {
+  navigator.mediaSession.setActionHandler("previoustrack", () => playAt(qi - 1));
+  navigator.mediaSession.setActionHandler("nexttrack", () => playAt(qi + 1));
+}
+
+// ───────── 快捷鍵 ─────────
+const help = $("#help");
+$("#helpBtn").onclick = () => { help.hidden = false; };
+help.onclick = e => { if (e.target === help || e.target.closest("[data-close]")) help.hidden = true; };
+document.addEventListener("keydown", e => {
+  // 「在打字」只算文字欄位；勾選框、按鈕上照樣可以用快捷鍵
+  const typing = e.target.matches('textarea, select, input:not([type="checkbox"]):not([type="radio"]):not([type="button"])');
+  const ed = state.view === "fix" && lastEditor && lastEditor === state.fixDir;
+  if (e.key === "Escape") { help.hidden = true; openDrawer(false); return; }
+  if (ed && (e.ctrlKey || e.metaKey) && !e.altKey) {
+    if (e.key === "s" || e.key === "S") { e.preventDefault(); return editor.save(false); }
+    if (e.key === "Enter") { e.preventDefault(); return editor.save(true); }
+    if (!typing && e.key === "z" && !e.shiftKey) { e.preventDefault(); return editor.undo(false); }
+    if (!typing && (e.key === "y" || (e.key === "z" && e.shiftKey) || e.key === "Z")) { e.preventDefault(); return editor.undo(true); }
+  }
+  // 填入播放位置：Alt+1 / Alt+2（任何時候），或沒在打字時按 [ / ]
+  const field = (e.altKey && !e.ctrlKey && (e.code === "Digit1" || e.code === "Numpad1")) || (!typing && !e.altKey && e.key === "[") ? "start"
+    : (e.altKey && !e.ctrlKey && (e.code === "Digit2" || e.code === "Numpad2")) || (!typing && !e.altKey && e.key === "]") ? "end" : null;
+  if (field && ed) { e.preventDefault(); return editor.fill(field); }
+  if (typing || e.ctrlKey || e.metaKey) return;
+  if (e.key === "?") { help.hidden = !help.hidden; return; }
+  if (ed && (e.key === "," || e.key === "." || e.key === "Enter") && !e.altKey && editor.cand(e.key)) { e.preventDefault(); return; }
+  if (ed && (e.key === "ArrowUp" || e.key === "ArrowDown") && !e.altKey) { e.preventDefault(); return editor.move(e.key === "ArrowUp" ? -1 : 1); }
+  if (e.code === "Space" && !e.altKey && e.target !== audio) {
+    e.preventDefault();
+    // 剛按過的按鈕、勾選框會留著焦點：放開空白鍵時瀏覽器會再按一次，先讓它失去焦點
+    if (e.target !== document.body && e.target.blur) e.target.blur();
+    if (audio.src) $("#toggleBtn").click();
+    else if (ed) editor.play();               // 還沒播放：從目前這首的開頭播原始音訊
+    else toast("在歌庫點一首歌開始聽");
+  }
+  // ← → 播放位置往前 / 往後 5 秒（Shift 1 秒）；焦點在播放器上時交給播放器自己處理
+  if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && audio.src && e.target !== audio && !e.altKey) {
+    e.preventDefault();
+    audio.currentTime = Math.max(0, Math.min(audio.duration || Infinity, audio.currentTime + (e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 1 : 5)));
+    updatePositions();
+  }
+});
+addEventListener("beforeunload", e => { if ([...editState.values()].some(s => s.dirty)) { e.preventDefault(); e.returnValue = ""; } });
+
+// ───────── 開始 ─────────
+showView(["add", "fix", "lib"].includes(state.view) ? state.view : "fix");
+loadLibrary();
+poll();
+</script>
+</body>
+</html>

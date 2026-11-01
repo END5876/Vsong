@@ -1,0 +1,8 @@
+// Syncthing 忽略規則範例：只把歌曲同步到手機
+// 用法：複製到 out/ 資料夾並改名為 .stignore
+source.*
+scores.*
+loudness.npy
+analysis.wav
+*.part
+*.ytdl

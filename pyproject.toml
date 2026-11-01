@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vsong"
+version = "0.1.0"
+description = "從直播、錄影或錄音中自動擷取唱歌的段落，只聽歌、跳過聊天"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+keywords = ["karaoke", "livestream", "vtuber", "youtube", "audio-classification", "music"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Topic :: Multimedia :: Sound/Audio",
+]
+dependencies = [
+    "torch>=2.1",
+    "yt-dlp[default]>=2025.1.1",
+    "transformers>=4.40",
+    "numpy>=1.24",
+    "soundfile>=0.12",
+]
+
+[project.optional-dependencies]
+identify = ["google-genai>=2.30", "shazamio>=0.6"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+vsong = "vsong:main"
+vsong-web = "webui:main"
+
+[tool.setuptools]
+py-modules = ["vsong", "webui"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
