@@ -1592,3 +1592,70 @@ def test_holodex_tags_with_wrong_times_are_ignored(tmp_path, monkeypatch):
     tl = json.loads(next((tmp_path / "out").glob("*/aphAfV1Ge8c/timeline.json")).read_text(encoding="utf-8"))
     assert "setlist" not in tl and all(s["title"] is None for s in tl["songs"])
 
+
+
+# ───────────────────────── 匯出 ─────────────────────────
+def ffprobe_tags(path):
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=format_name:format_tags:stream=codec_name,sample_rate",
+                        "-of", "json", str(path)], capture_output=True, text=True, encoding="utf-8", check=True)
+    j = json.loads(r.stdout)
+    return j["format"], j["streams"][0]
+
+
+def test_export_name():
+    tl = {"upload_date": "20250314", "title": "歌枠", "video_id": "v1", "channel": "Aちゃん Ch"}
+    assert vsong.export_name({"title": "アイドル", "start": 10}, tl, 1) == "アイドル(250314) - Aちゃん Ch"
+    assert vsong.export_name({"title": None, "start": 3754}, tl, 2) == "歌枠 1h02m34s(250314) - Aちゃん Ch"
+    assert vsong.export_name({"title": "A/B", "start": 0}, {"video_id": "v1"}, 1) == "A_B"     # 沒日期、頻道就不加
+
+
+@needs_ffmpeg
+def test_export_songs(tmp_path):
+    out = tmp_path / "out"
+    write_stream(out / "Aちゃん" / "v1", "v1", "20250314", [("アイドル", 0, 3), ("アイドル", 5, 8), (None, 10, 13)], channel="Aちゃん")
+    write_stream(out / "B" / "v2", "v2", "20250401", [("アイドル", 0, 3)], channel="B")
+    dest = tmp_path / "music"
+    picks = [{"dir": "Aちゃん/v1", "start": 0}, {"dir": "Aちゃん/v1", "start": 5}, {"dir": "Aちゃん/v1", "start": 10},
+             {"dir": "B/v2", "start": 0}, {"dir": "B/v2", "start": 99}, {"dir": "../x", "start": 0}]
+    r = vsong.export_songs(out, {"dest": str(dest), "songs": picks})
+    assert r == {"exported": 4, "skipped": 0, "missing": 1, "failed": 0}      # 對不上的開始時間算找不到；跑出 out 的不理
+    assert sorted(p.relative_to(dest).as_posix() for p in dest.rglob("*")) == [
+        "Aちゃん", "Aちゃん/アイドル(250314) - Aちゃん #2.m4a", "Aちゃん/アイドル(250314) - Aちゃん.m4a",
+        "Aちゃん/歌回 v1 0h00m10s(250314) - Aちゃん.m4a", "B", "B/アイドル(250401) - B.m4a"]
+    f = dest / "Aちゃん" / "アイドル(250314) - Aちゃん.m4a"
+    fmt, st = ffprobe_tags(f)
+    tags = {k.lower(): v for k, v in fmt["tags"].items()}
+    assert st["codec_name"] == "aac" and tags["title"] == "アイドル" and tags["album_artist"] == "Aちゃん"
+    assert tags["date"] == "2025-03-14" and tags["description"].endswith("&t=0s")
+    b = f.read_bytes()
+    assert b.find(b"moov") < b.find(b"mdat")                                 # faststart：網頁串流不用先跳到檔尾
+    assert f.read_bytes() == b
+
+    # 已存在的略過；勾覆蓋才重做
+    assert vsong.export_songs(out, {"dest": str(dest), "songs": picks[:1]})["skipped"] == 1
+    assert vsong.export_songs(out, {"dest": str(dest), "songs": picks[:1], "overwrite": True})["exported"] == 1
+    assert not list(dest.rglob("*.part.*"))
+
+
+@needs_ffmpeg
+def test_export_mp3_normalized_flat(tmp_path):
+    out = tmp_path / "out"
+    write_stream(out / "A" / "v1", "v1", "20250314", [("X", 0, 4)], channel="A")
+    write_stream(out / "B" / "v2", "v2", "20250314", [("X", 0, 4)], channel="B")
+    dest = tmp_path / "music"
+    r = vsong.export_songs(out, {"dest": str(dest), "format": "mp3", "normalize": True, "layout": "flat",
+                                 "songs": [{"dir": "A/v1", "start": 0}, {"dir": "B/v2", "start": 0}]})
+    assert r["exported"] == 2
+    assert sorted(p.name for p in dest.iterdir()) == ["X(250314) - A.mp3", "X(250314) - B.mp3"]   # 平鋪時靠頻道名分開
+    fmt, st = ffprobe_tags(dest / "X(250314) - A.mp3")
+    assert st["codec_name"] == "mp3" and st["sample_rate"] == "48000"            # loudnorm 不會留下 192 kHz
+
+
+def test_export_rejects_bad_dest(tmp_path):
+    out = tmp_path / "out"
+    out.mkdir()
+    for dest in ("", "relative/path", str(out / "sub")):
+        with pytest.raises(ValueError):
+            vsong.export_songs(out, {"dest": dest, "songs": []})
+    with pytest.raises(ValueError):
+        vsong.export_songs(out, {"dest": str(tmp_path / "m"), "format": "wav", "songs": []})

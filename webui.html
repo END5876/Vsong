@@ -246,6 +246,28 @@ summary { cursor: pointer; color: var(--muted); font-size: 14px; }
   display: grid; place-items: center; cursor: pointer; font-size: 11px; padding: 0; color: var(--text); }
 .song:hover .play, .song.playing .play { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
+/* ───────── 匯出 ───────── */
+.exp { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 18px; align-items: start; max-width: 1700px; }
+.exp .libhead label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: var(--muted); }
+.expside { position: sticky; top: calc(var(--hdr) + 18px); }
+.expside .fld { margin-bottom: 14px; }
+.expside .opts { margin: 4px 0 0; flex-direction: column; gap: 8px; }
+.expside .sum { font-size: 15px; margin: 4px 0 14px; }
+.expside .sum b { color: var(--accent); font-size: 20px; margin: 0 2px; }
+.expside .eg { font: 12px ui-monospace, Consolas, monospace; color: var(--muted); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; word-break: break-all; margin-top: 6px; }
+.xrow { display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: 8px; cursor: pointer; }
+.xrow:hover { background: var(--panel-2); }
+.xrow.ch { font-weight: 600; margin-top: 4px; }
+.xrow.st { padding-left: 32px; }
+.xrow.song { padding-left: 62px; font-size: 14px; cursor: default; }
+.xrow .chev { color: var(--dim); width: 14px; transition: transform .15s; }
+.xrow.open .chev { transform: rotate(90deg); }
+.xrow .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xrow .t small { color: var(--muted); margin-left: 6px; font-weight: 400; }
+.xrow .m { color: var(--muted); font-size: 12.5px; font-weight: 400; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.xrow input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+
 /* ───────── 工作面板、快捷鍵、播放器、提示 ───────── */
 .drawer { position: fixed; top: var(--hdr); right: 0; bottom: var(--player); width: min(720px, 70vw); z-index: 25; background: var(--panel);
   border-left: 1px solid var(--line); box-shadow: -10px 0 30px rgb(0 0 0 / .35); display: flex; flex-direction: column;
@@ -311,6 +333,7 @@ summary { cursor: pointer; color: var(--muted); font-size: 14px; }
   .bar { padding: 0 14px; gap: 14px; }
   .addgrid { grid-template-columns: minmax(0, 1fr); }
   .lib { grid-template-columns: 220px minmax(0, 1fr); }
+  .exp { grid-template-columns: minmax(0, 1fr) 340px; }
   .shead .badge:not(.ok):not(.warn) { display: none; }
   .edit td.info { max-width: 160px; }
   .player .now { width: 260px; }
@@ -359,6 +382,7 @@ summary { cursor: pointer; color: var(--muted); font-size: 14px; }
       <button class="tab" data-view="add">新增</button>
       <button class="tab" data-view="fix">修切點<span class="n" id="todoN" hidden></span></button>
       <button class="tab" data-view="lib">歌庫</button>
+      <button class="tab" data-view="exp">匯出</button>
     </nav>
     <button class="pill" id="jobPill" title="工作進度和紀錄"><i class="dot" id="dot"></i><span id="jobText">閒置</span></button>
     <button class="btn ghost sm" id="helpBtn" title="快捷鍵（?）">⌨<span class="lbl"> 快捷鍵</span></button>
@@ -465,6 +489,56 @@ summary { cursor: pointer; color: var(--muted); font-size: 14px; }
     <div class="lib">
       <nav class="card side" id="channels"></nav>
       <div id="libMain"></div>
+    </div>
+  </section>
+
+  <!-- ───── 匯出 ───── -->
+  <section class="view" id="view-exp">
+    <div class="exp">
+      <div class="card">
+        <div class="libhead">
+          <h2>挑歌</h2>
+          <label title="沒辨識出歌名的（檔名是時間）不列出"><input type="checkbox" id="expNamed" checked> 只要有歌名的</label>
+          <label title="同一個頻道唱過好幾次的歌，只列最新一場的"><input type="checkbox" id="expLatest"> 同一首只要最新一版</label>
+          <input type="search" id="expQ" placeholder="搜尋歌名、原唱、場次…">
+        </div>
+        <div id="expTree"></div>
+      </div>
+      <div class="card expside">
+        <h2>匯出</h2>
+        <div class="sum" id="expSum"></div>
+        <div class="fld">
+          <label class="f" for="expDest">匯出到</label>
+          <div class="row" style="gap:4px;flex-wrap:nowrap">
+            <input type="text" id="expDest" placeholder="D:\Music\vsong"><button class="btn sm" id="expPick" type="button">選擇…</button>
+          </div>
+        </div>
+        <div class="fld">
+          <label class="f" for="expFormat">格式</label>
+          <select id="expFormat">
+            <option value="m4a">m4a（原樣，不重新編碼，音質不變）</option>
+            <option value="mp3">mp3（相容性最高，會重新編碼）</option>
+          </select>
+          <div class="opts">
+            <label title="每首調到 -16 LUFS（跟 music-library-service 一樣），跟其他歌混著聽不會忽大忽小；會重新編碼"><input type="checkbox" id="expNorm"> 音量正規化（-16 LUFS，會重新編碼）</label>
+          </div>
+        </div>
+        <div class="fld">
+          <label class="f" for="expLayout">資料夾</label>
+          <select id="expLayout">
+            <option value="channel">每個頻道一個資料夾</option>
+            <option value="flat">全部放在同一個資料夾</option>
+          </select>
+          <div class="opts">
+            <label><input type="checkbox" id="expOverwrite"> 覆蓋已存在的檔案（不勾：已匯出過的略過）</label>
+          </div>
+          <div class="eg" id="expEg"></div>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="expGo">⬇ 匯出</button>
+          <button class="btn sm ghost" id="expClear">清除選取</button>
+        </div>
+      </div>
     </div>
   </section>
 </main>
@@ -595,6 +669,7 @@ function showView(name) {
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "view-" + name));
   if (name === "fix") renderFix();
   if (name === "lib") renderLib();
+  if (name === "exp") renderExp();
 }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => showView(t.dataset.view));
 
@@ -707,7 +782,7 @@ async function loadLibrary() {
   try { lib = await api("/api/library"); } catch (e) { toast("讀取歌庫失敗：" + e.message); return; }
   $("#outDir").textContent = lib.out || "—";
   renderTodoCount();
-  if (state.view === "fix") renderFix(); else if (state.view === "lib") renderLib();
+  if (state.view === "fix") renderFix(); else if (state.view === "lib") renderLib(); else if (state.view === "exp") renderExp();
 }
 const allStreams = () => lib.channels.flatMap(ch => ch.streams.map(st => ({ ch, st })));
 const findStream = dir => allStreams().find(x => x.st.dir === dir) || null;
@@ -844,6 +919,138 @@ function streamQueue(ch, st, match) {
   }));
 }
 const channelQueue = (ch, match) => [...ch.streams].reverse().flatMap(st => streamQueue(ch, st, match));   // 由舊到新
+
+// ───────── 匯出 ─────────
+// 選取記的是「場次資料夾 @ 開始秒數」，不用序號：排隊中的重新切檔改了序號也對得上
+const expSel = new Set(), expOpen = new Set();
+const expKey = (st, s) => st.dir + "@" + s.start;
+const normTitle = t => String(t).normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, "").toLowerCase();
+const EXP_FIELDS = { expDest: "dest", expFormat: "format", expNorm: "normalize", expLayout: "layout", expOverwrite: "overwrite" };
+(() => {
+  const saved = store.get("export", {});
+  for (const [id, k] of Object.entries(EXP_FIELDS)) if (k in saved) {
+    const el = $("#" + id); el.type === "checkbox" ? el.checked = saved[k] : el.value = saved[k];
+  }
+  $("#expNamed").checked = store.get("expNamed", true);
+  $("#expLatest").checked = store.get("expLatest", false);
+})();
+function expSettings() {
+  const o = {};
+  for (const [id, k] of Object.entries(EXP_FIELDS)) { const el = $("#" + id); o[k] = el.type === "checkbox" ? el.checked : el.value.trim(); }
+  return o;
+}
+// 篩選後看得到的歌：{ch: [{st, songs}]}；勾頻道、勾場次只勾看得到的
+function expVisible() {
+  const named = $("#expNamed").checked, latest = $("#expLatest").checked, q = $("#expQ").value.trim().toLowerCase();
+  return lib.channels.map(ch => {
+    const seen = new Set();              // 場次是新到舊排的：第一次看到的就是最新一版
+    const streams = ch.streams.map(st => {
+      const hitSt = !q || st.title.toLowerCase().includes(q) || (st.date || "").includes(q);
+      const songs = st.songs.filter(s => {
+        if (!s.file || (named && !s.title)) return false;
+        if (latest && s.title) { const k = normTitle(s.title); if (seen.has(k)) return false; seen.add(k); }
+        return hitSt || (s.title || "").toLowerCase().includes(q) || (s.artist || "").toLowerCase().includes(q);
+      });
+      return { st, songs };
+    }).filter(x => x.songs.length);
+    return { ch, streams };
+  }).filter(x => x.streams.length);
+}
+function expPicked(vis = expVisible()) {
+  return vis.flatMap(({ streams }) => streams.flatMap(({ st, songs }) => songs.filter(s => expSel.has(expKey(st, s))).map(s => ({ st, s }))));
+}
+function renderExp() {
+  const tree = $("#expTree"), vis = expVisible(), q = $("#expQ").value.trim();
+  if (!lib.channels.length) {
+    tree.innerHTML = `<div class="empty"><div class="big">🎶</div><p>歌庫是空的。到「新增」貼上網址開始吧。</p></div>`;
+  } else if (!vis.length) {
+    tree.innerHTML = `<div class="empty">沒有符合條件的歌</div>`;
+  } else {
+    const box = (keys, attrs) => {
+      const n = keys.filter(k => expSel.has(k)).length;
+      return `<input type="checkbox" ${attrs} ${n && n === keys.length ? "checked" : ""} data-part="${n && n < keys.length ? 1 : ""}">`;
+    };
+    let html = "";
+    for (const { ch, streams } of vis) {
+      const keys = streams.flatMap(({ st, songs }) => songs.map(s => expKey(st, s)));
+      const open = q || expOpen.has(ch.name), n = keys.filter(k => expSel.has(k)).length;
+      html += `<div class="xrow ch ${open ? "open" : ""}" data-ch="${esc(ch.name)}"><span class="chev">▶</span>${box(keys, `data-x="ch"`)}
+        <span class="t">${esc(ch.name)}</span><span class="m">${n ? `已選 ${n} / ` : ""}${keys.length} 首 · ${streams.length} 場</span></div>`;
+      if (!open) continue;
+      for (const { st, songs } of streams) {
+        const sk = songs.map(s => expKey(st, s)), so = q || expOpen.has(st.dir), sn = sk.filter(k => expSel.has(k)).length;
+        html += `<div class="xrow st ${so ? "open" : ""}" data-dir="${esc(st.dir)}"><span class="chev">▶</span>${box(sk, `data-x="st"`)}
+          <span class="t" title="${esc(st.title)}">${esc(st.title)}</span><span class="m">${esc(st.date || "日期不明")} · ${sn ? `${sn} / ` : ""}${songs.length} 首</span></div>`;
+        if (!so) continue;
+        for (const s of songs) html += `<label class="xrow song"><input type="checkbox" data-x="song" data-k="${esc(expKey(st, s))}" ${expSel.has(expKey(st, s)) ? "checked" : ""}>
+          <span class="t">${s.title ? esc(s.title) : `<span class="untitled">未命名 ${fmtT(s.start)}</span>`}${s.artist ? `<small>${esc(s.artist)}</small>` : ""}</span>
+          <span class="m">${fmtT(s.end - s.start)}</span></label>`;
+      }
+    }
+    tree.innerHTML = html;
+    tree.querySelectorAll('[data-part="1"]').forEach(el => el.indeterminate = true);
+  }
+  renderExpSide(vis);
+}
+function renderExpSide(vis = expVisible()) {
+  const picked = expPicked(vis), secs = picked.reduce((a, { s }) => a + s.end - s.start, 0);
+  const chs = new Set(picked.map(({ st }) => st.dir.split("/")[0]));
+  $("#expSum").innerHTML = picked.length
+    ? `已選 <b>${picked.length}</b> 首 <span class="hint">· ${chs.size} 個頻道 · 共 ${fmtT(secs)}</span>`
+    : `<span class="hint">在左邊勾選要匯出的頻道、場次或歌</span>`;
+  const o = expSettings(), sep = /\//.test(o.dest) && !/\\/.test(o.dest) ? "/" : "\\";
+  const eg = picked[0] || vis[0] && { st: vis[0].streams[0].st, s: vis[0].streams[0].songs[0] };
+  if (eg) {
+    const d = eg.st.date || "";
+    const name = (eg.s.title || `${eg.st.title} ${fmtT(eg.s.start)}`) + (d ? `(${d.slice(2).replace(/-/g, "")})` : "")
+      + (eg.st.channel ? ` - ${eg.st.channel}` : "");
+    $("#expEg").textContent = [o.dest.replace(/[\\/]+$/, "") || "…", ...(o.layout === "flat" ? [] : [eg.st.dir.split("/")[0]]), name + "." + o.format].join(sep);
+  }
+  $("#expEg").hidden = !eg;
+  $("#expGo").disabled = !picked.length;
+}
+$("#expTree").addEventListener("click", e => {
+  const row = e.target.closest(".xrow");
+  if (!row || row.classList.contains("song")) return;
+  const cb = e.target.closest("input[type=checkbox]");
+  const id = row.dataset.ch ?? row.dataset.dir;
+  if (!cb) { expOpen.has(id) ? expOpen.delete(id) : expOpen.add(id); return renderExp(); }
+  const vis = expVisible();
+  const songs = row.dataset.ch != null
+    ? vis.find(x => x.ch.name === id).streams.flatMap(({ st, songs }) => songs.map(s => expKey(st, s)))
+    : vis.flatMap(x => x.streams).filter(x => x.st.dir === id).flatMap(({ st, songs }) => songs.map(s => expKey(st, s)));
+  songs.forEach(k => cb.checked ? expSel.add(k) : expSel.delete(k));
+  renderExp();
+});
+$("#expTree").addEventListener("change", e => {
+  if (e.target.dataset.x !== "song") return;
+  e.target.checked ? expSel.add(e.target.dataset.k) : expSel.delete(e.target.dataset.k);
+  renderExp();
+});
+$("#expQ").addEventListener("input", e => { if (!e.isComposing) renderExp(); });
+$("#expQ").addEventListener("compositionend", renderExp);
+$("#expNamed").onchange = () => { store.set("expNamed", $("#expNamed").checked); renderExp(); };
+$("#expLatest").onchange = () => { store.set("expLatest", $("#expLatest").checked); renderExp(); };
+for (const id of Object.keys(EXP_FIELDS)) $("#" + id).addEventListener(id === "expDest" ? "input" : "change", () => {
+  store.set("export", expSettings()); renderExpSide();
+});
+$("#expClear").onclick = () => { expSel.clear(); renderExp(); };
+$("#expPick").onclick = async () => {
+  try {
+    toast("選擇視窗已開啟（可能在瀏覽器後面）");
+    const { paths } = await api("/api/pick", { kind: "dest" });
+    if (paths.length) { $("#expDest").value = paths[0]; store.set("export", expSettings()); renderExpSide(); }
+  } catch (e) { toast(e.message); }
+};
+$("#expGo").onclick = async () => {
+  const o = expSettings(), picked = expPicked();
+  if (!o.dest) { toast("請先選擇匯出到哪個資料夾"); $("#expDest").focus(); return; }
+  try {
+    await api("/api/export", { ...o, songs: picked.map(({ st, s }) => ({ dir: st.dir, start: s.start })) });
+    toast(`開始匯出 ${picked.length} 首，進度在右上角`);
+    startPolling(); openDrawer(true);
+  } catch (e) { toast(e.message); }
+};
 
 // ───────── 修切點：左邊的場次清單 ─────────
 function fixCandidates() {
@@ -1847,7 +2054,7 @@ addEventListener("beforeunload", e => { if ([...editState.values()].some(s => s.
 
 // ───────── 開始 ─────────
 applyListCollapsed();
-showView(["add", "fix", "lib"].includes(state.view) ? state.view : "fix");
+showView(["add", "fix", "lib", "exp"].includes(state.view) ? state.view : "fix");
 loadLibrary();
 poll();
 </script>

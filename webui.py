@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import webbrowser
 from http import HTTPStatus
@@ -47,6 +48,9 @@ root = tk.Tk(); root.withdraw(); root.attributes("-topmost", True)
 exts = sys.argv[2]
 if sys.argv[1] == "folder":
     p = filedialog.askdirectory(title="選擇資料夾（會處理裡面所有影音檔）")
+    paths = [p] if p else []
+elif sys.argv[1] == "dest":
+    p = filedialog.askdirectory(title="選擇匯出到哪個資料夾")
     paths = [p] if p else []
 elif sys.argv[1] == "cookies":
     p = filedialog.askopenfilename(title="選擇 cookies.txt",
@@ -216,7 +220,7 @@ def list_library(out_root):
             })
         channels.setdefault(d.parent.name, []).append({
             "vid": tl.get("video_id") or d.name, "dir": d.relative_to(out_root).as_posix(),
-            "title": tl.get("title") or d.name, "date": vsong.fmt_date(tl.get("upload_date")),
+            "title": tl.get("title") or d.name, "date": vsong.fmt_date(tl.get("upload_date")), "channel": tl.get("channel"),
             "url": tl.get("url"), "local_path": tl.get("local_path"), "params": tl.get("params") or {},
             "has_scores": (d / "scores.csv").exists(),
             "source": (d / tl["source"]).relative_to(out_root).as_posix()
@@ -442,6 +446,32 @@ def delete_stream(out_root, rel_dir, forget=True):
     return ch.exists()
 
 
+def export_spec(out_root, body):
+    """匯出頁的設定 → 暫存的設定檔（歌很多時放不進指令列）；vsong --export 讀完就刪"""
+    dest = str(body.get("dest") or "").strip().strip('"').strip()
+    if not dest or not Path(dest).is_absolute():
+        raise ValueError("請指定匯出到哪個資料夾（完整路徑，例如 D:\\Music\\vsong）")
+    root = out_root.resolve()
+    if Path(dest).resolve() == root or root in Path(dest).resolve().parents:
+        raise ValueError("不能匯出到輸出資料夾（out）裡面，請選別的資料夾")
+    if body.get("format", "m4a") not in vsong.EXPORT_FORMATS:
+        raise ValueError(f"不支援的格式：{body.get('format')}")
+    songs = []
+    for s in body.get("songs") or []:
+        if not safe_path(out_root, str(s["dir"])):
+            raise ValueError(f"不正確的場次：{s['dir']}")
+        songs.append({"dir": str(s["dir"]), "start": float(s["start"])})
+    if not songs:
+        raise ValueError("還沒有選任何歌")
+    spec = {"dest": dest, "format": body.get("format", "m4a"), "normalize": bool(body.get("normalize")),
+            "layout": "flat" if body.get("layout") == "flat" else "channel", "overwrite": bool(body.get("overwrite")),
+            "songs": songs, "temp": True}
+    fd, path = tempfile.mkstemp(prefix="vsong-export-", suffix=".json")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(spec, f, ensure_ascii=False)
+    return path
+
+
 def safe_path(out_root, rel):
     """把網址路徑對應到 out 底下的檔案，擋掉 ../ 之類跑出 out 的路徑"""
     root = out_root.resolve()
@@ -523,6 +553,9 @@ def make_handler(out_root, job):
                     if not delete_stream(out_root, body.get("dir", ""), body.get("forget", True)):
                         return self.send_json({"ok": True})
                     ok = job.enqueue(["--library", "--out", str(out_root)], "重建總歌單")   # 總歌單、歌庫表拿掉這場
+                elif u.path == "/api/export":
+                    ok = job.enqueue(["--export", export_spec(out_root, body), "--out", str(out_root)],
+                                     f"匯出 {len(body.get('songs') or [])} 首")
                 elif u.path == "/api/stop":
                     return self.send_json({"ok": job.stop()})
                 elif u.path == "/api/setlist/preview":
@@ -531,7 +564,7 @@ def make_handler(out_root, job):
                     target = save_manual_setlist(out_root, body.get("dir", ""), body.get("text", ""))
                     ok = job.enqueue([target, "--out", str(out_root), "--jobs", "1"], "套用粉絲歌單")
                 elif u.path == "/api/pick":
-                    kind = body.get("kind") if body.get("kind") in ("folder", "cookies") else "files"
+                    kind = body.get("kind") if body.get("kind") in ("folder", "dest", "cookies") else "files"
                     return self.send_json({"paths": pick_paths(kind)})
                 else:
                     return self.send_error(HTTPStatus.NOT_FOUND)

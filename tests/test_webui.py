@@ -234,3 +234,22 @@ def test_saves_queue_instead_of_conflict(server):
         tl = json.loads((out / "Ch" / v / "timeline.json").read_text(encoding="utf-8"))
         assert tl["songs"][0]["end"] == e and tl["locked"] is True
     assert job.returncode == 0
+
+
+@needs_ffmpeg
+def test_export(server, tmp_path):
+    base, out, job = server
+    write_stream(out / "Ch" / "v1", "v1", "20250101", [("A", 0, 3), ("B", 5, 8)])
+    dest = tmp_path / "music"
+    for body in ({"dest": "", "songs": [{"dir": "Ch/v1", "start": 0}]},
+                 {"dest": "rel", "songs": [{"dir": "Ch/v1", "start": 0}]},
+                 {"dest": str(out / "x"), "songs": [{"dir": "Ch/v1", "start": 0}]},
+                 {"dest": str(dest), "songs": []},
+                 {"dest": str(dest), "songs": [{"dir": "../../etc", "start": 0}]}):
+        assert post(base + "/api/export", body)[0] == 400
+    status, r = post(base + "/api/export", {"dest": str(dest), "format": "m4a", "songs": [{"dir": "Ch/v1", "start": 5}]})
+    assert status == 200
+    s = wait_job(base)
+    assert s["returncode"] == 0 and s["label"] == "匯出 1 首"
+    assert [p.name for p in (dest / "Ch").iterdir()] == ["B(250101) - Ch.m4a"]
+    assert "--export" in s["log"]

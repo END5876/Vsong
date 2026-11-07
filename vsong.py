@@ -1902,6 +1902,135 @@ def build_all(out_root):
             build_library(cd)
 
 
+# ───────────────────────── 6. 匯出（挑選的歌 → 指定資料夾） ─────────────────────────
+EXPORT_FORMATS = {"m4a": ".m4a", "mp3": ".mp3"}
+LOUDNORM = "loudnorm=I=-16:TP=-1.5:LRA=11"     # 跟 music-library-service 一樣 -16 LUFS
+
+
+def export_name(s, tl, n):
+    """匯出的檔名：「歌名(YYMMDD) - 頻道名稱」；同一首歌唱很多場、很多人唱也分得出來，不帶會隨重新切檔改變的序號"""
+    d = tl.get("upload_date") or ""
+    label = s.get("title") or f"{tl.get('title') or tl.get('video_id') or ''} {fmt_t(float(s['start']))}".strip()
+    name = safe_name(f"{label}({d[2:]})" if len(d) == 8 else label) or f"Song {n}"
+    channel = safe_name(tl.get("channel") or "")
+    return f"{name} - {channel}" if channel else name
+
+
+def export_meta(s, tl, n, total):
+    title = s.get("title") or f"Song {n} ({fmt_t(float(s['start']))})"
+    channel = tl.get("channel") or ""
+    meta = {"title": title, "artist": channel, "album_artist": channel,
+            "album": tl.get("title") or tl.get("video_id") or "", "track": f"{n}/{total}",
+            "date": fmt_date(tl.get("upload_date"))}
+    if s.get("artist"):
+        meta["comment"] = f"原唱：{s['artist']}"
+    if tl.get("url"):
+        meta["description"] = f"{tl['url']}&t={int(float(s['start']))}s"
+    return [x for k, v in meta.items() if v for x in ("-metadata", f"{k}={v}")]
+
+
+def measure_loudness(path):
+    """loudnorm 第一遍：量整首的響度，第二遍照這個線性調整（不壓縮動態）"""
+    err = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-map", "0:a:0",
+                          "-af", LOUDNORM + ":print_format=json", "-f", "null", "-"],
+                         capture_output=True, text=True, encoding="utf-8", errors="replace").stderr
+    m = re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", err)
+    if not m:
+        raise RuntimeError(f"量不到響度：{path.name}")
+    j = json.loads(m.group(0))
+    if j["input_i"] in ("-inf", "inf"):
+        return None                    # 整首沒聲音：不調整
+    return (f"{LOUDNORM}:measured_I={j['input_i']}:measured_TP={j['input_tp']}:measured_LRA={j['input_lra']}"
+            f":measured_thresh={j['input_thresh']}:offset={j['target_offset']}:linear=true")
+
+
+def export_one(src, dst, fmt, normalize, meta):
+    """先寫成 .part 再改名：中途停止不會留下半個檔案"""
+    tmp = dst.with_name(dst.stem + ".part" + dst.suffix)
+    af = measure_loudness(src) if normalize else None
+    if fmt == "m4a" and not af:
+        codec = ["-c:a", "copy"]                     # 原樣：不重新編碼，音質不變
+    elif fmt == "m4a":
+        codec = ["-af", af, "-ar", "48000", "-c:a", "aac", "-b:a", "192k"]   # loudnorm 會升到 192 kHz，要轉回來
+    else:
+        codec = (["-af", af, "-ar", "48000"] if af else []) + ["-c:a", "libmp3lame", "-q:a", "2"]
+    tail = ["-movflags", "+faststart"] if fmt == "m4a" else ["-id3v2_version", "3"]
+    try:
+        ffmpeg(["-i", str(src), "-map", "0:a:0", "-map_metadata", "-1", *codec, *meta, *tail, str(tmp)])
+        os.replace(tmp, dst)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def export_songs(out_root, spec):
+    """spec：{dest, format, normalize, layout（channel / flat）, overwrite, songs: [{dir, start}]}
+    dir 是 out 底下的場次資料夾（頻道/影片ID），start 用來找是哪一首（序號會隨重新切檔改變）"""
+    fmt = spec.get("format") or "m4a"
+    if fmt not in EXPORT_FORMATS:
+        raise ValueError(f"不支援的格式：{fmt}")
+    dest = Path(spec.get("dest") or "")
+    if not str(spec.get("dest") or "").strip() or not dest.is_absolute():
+        raise ValueError("請指定匯出到哪個資料夾（完整路徑）")
+    root = out_root.resolve()
+    if dest.resolve() == root or root in dest.resolve().parents:
+        raise ValueError("不能匯出到輸出資料夾（out）裡面，請選別的資料夾")
+    normalize, flat, overwrite = bool(spec.get("normalize")), spec.get("layout") == "flat", bool(spec.get("overwrite"))
+
+    timelines, jobs, used, missing = {}, [], set(), 0
+    for pick in spec.get("songs") or []:
+        d = (root / str(pick["dir"])).resolve()
+        if root not in d.parents:
+            continue
+        if d not in timelines:
+            try:
+                timelines[d] = json.loads((d / "timeline.json").read_text(encoding="utf-8"))
+            except Exception:
+                timelines[d] = None
+        tl = timelines[d]
+        songs = (tl or {}).get("songs") or []
+        n = next((i for i, s in enumerate(songs, 1) if abs(float(s["start"]) - float(pick["start"])) < 0.01), None)
+        src = d / "songs" / song_filename(n, songs[n - 1]) if n else None
+        if not src or not src.exists():
+            missing += 1
+            continue
+        s = songs[n - 1]
+        folder = dest if flat else dest / d.parent.name
+        name = export_name(s, tl, n)
+        k = 1
+        while (folder / name).as_posix().lower() in used:   # 同一場唱兩次、同一天兩場：加 #2
+            k += 1
+            name = f"{export_name(s, tl, n)} #{k}"
+        used.add((folder / name).as_posix().lower())
+        jobs.append((src, folder / (name + EXPORT_FORMATS[fmt]), export_meta(s, tl, n, len(songs))))
+
+    how = f"{fmt}{'，音量正規化 -16 LUFS' if normalize else '，原樣不重新編碼' if fmt == 'm4a' else ''}"
+    print(f"匯出 {len(jobs)} 首 → {dest}（{how}）")
+    todo = [j for j in jobs if overwrite or not j[1].exists()]
+    skipped = len(jobs) - len(todo)
+    for folder in {j[1].parent for j in todo}:
+        folder.mkdir(parents=True, exist_ok=True)
+
+    done, failed = 0, []
+    with ThreadPoolExecutor(max_workers=CUT_WORKERS) as pool:
+        futs = {pool.submit(export_one, src, dst, fmt, normalize, meta): dst for src, dst, meta in todo}
+        for fut in as_completed(futs):
+            try:
+                fut.result()
+            except Exception as e:
+                failed.append((futs[fut], e))
+            done += 1
+            print(f"\r  匯出 {done}/{len(todo)}", end="", flush=True)
+    if todo:
+        print()
+    for dst, e in failed:
+        print(f"  ✖ {dst.name}：{e}")
+    print(f"✔ 匯出完成：{len(todo) - len(failed)} 首"
+          + (f"，{skipped} 首已存在略過" if skipped else "")
+          + (f"，{missing} 首找不到音檔（可能要重新切檔）" if missing else "")
+          + (f"，{len(failed)} 首失敗" if failed else ""))
+    return {"exported": len(todo) - len(failed), "skipped": skipped, "missing": missing, "failed": len(failed)}
+
+
 def merge_same_titles(segs, names, max_gap=60.0):
     """一首歌被間奏、喊聲切成好幾段時，每段都會被認成同一首。相鄰、隔不到 max_gap 秒、歌名一樣 → 合成一首"""
     out_s, out_n = [], []
@@ -2235,6 +2364,8 @@ def main():
                     help="同時處理幾部影片（預設 2；AI 分析一次一部、連 YouTube 照樣排隊）")
     ap.add_argument("--no-lengths", action="store_true", help="不要查原曲長度（iTunes）")
     ap.add_argument("--library", action="store_true", help="只重建總歌單，不處理影片")
+    ap.add_argument("--export", metavar="SPEC.json",
+                    help="把挑選的歌匯出到指定資料夾（網頁「匯出」頁產生的設定檔）")
     ap.add_argument("--check", action="store_true",
                     help="不重新處理，只檢查歌庫裡所有切點，標出可能不準的（勾了「已手動處理」的略過）")
     args = ap.parse_args()
@@ -2270,6 +2401,20 @@ def main():
     if args.library:
         build_all(out_root)
         return
+
+    if args.export:
+        spec_p = Path(args.export)
+        try:
+            spec = json.loads(spec_p.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            sys.exit(f"讀不到匯出設定 {args.export}：{e}")
+        if spec.get("temp"):                     # 網頁產生的暫存設定，讀完就刪
+            spec_p.unlink(missing_ok=True)
+        try:
+            r = export_songs(out_root, spec)
+        except ValueError as e:
+            sys.exit(str(e))
+        sys.exit(1 if r["failed"] else 0)
 
     if args.check:
         paths = sorted(out_root.glob("*/*/timeline.json"))
