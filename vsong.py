@@ -46,6 +46,7 @@ vsong.py — 從直播、錄影或錄音中自動擷取「只有歌」的段落
   out/<頻道>/versions/<歌名>.m3u8                ← 同一首歌在不同場的所有版本（需有歌名）
   out/<頻道>/library.csv                         ← 歌庫總表（Excel 可開，含 YouTube 時間連結）
   out/channels.json                              ← 頻道 ID ↔ 資料夾名稱對照（頻道改名也不會分家）
+  out/deleted.json                               ← 在網頁上刪掉的影片：處理清單、頻道時略過
 
   頻道以「上傳者」為準：聯動直播會放在開台那位的資料夾。
   同步到手機：同步整個 out（或單一頻道資料夾），排除 source.* 與 scores.*（原始音訊很大）；
@@ -454,6 +455,23 @@ def _channel_dir(out_root, channel_id, channel_name):
         out_root.mkdir(parents=True, exist_ok=True)
         idx_p.write_text(json.dumps(idx, ensure_ascii=False, indent=2), encoding="utf-8")
     return out_root / idx[key]
+
+
+def deleted_ids(out_root):
+    """在網頁上刪掉、不想要的影片 ID：處理清單、頻道時略過"""
+    try:
+        return set(json.loads((Path(out_root) / "deleted.json").read_text(encoding="utf-8")))
+    except Exception:
+        return set()
+
+
+def set_deleted(out_root, vid, on=True):
+    with _fs_lock:
+        ids = deleted_ids(out_root)
+        if (vid in ids) == on:
+            return
+        ids = ids | {vid} if on else ids - {vid}
+        (Path(out_root) / "deleted.json").write_text(json.dumps(sorted(ids), ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def find_video_dir(out_root, vid):
@@ -2278,7 +2296,13 @@ def main():
     kws = [k.strip() for k in args.filter.split(",") if k.strip()] if args.filter else None
     jobs = expand_urls(args.urls, cookies_of(args), kws, args.limit, cache_dir=out_root)
     todo = []
+    deleted = deleted_ids(out_root)
     for i, (u, vid, from_list) in enumerate(jobs, 1):
+        if from_list and vid in deleted:
+            print(f"\n[{i}/{len(jobs)}] 之前刪掉了，略過 {u}")
+            continue
+        if vid in deleted:                       # 直接指定這部：又想要了，從刪除清單拿掉
+            set_deleted(out_root, vid, False)
         if from_list and vid and not args.force and find_video_dir(out_root, vid):
             print(f"\n[{i}/{len(jobs)}] 已處理過，略過 {u}")
             continue

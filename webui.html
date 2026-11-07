@@ -274,6 +274,15 @@ summary { cursor: pointer; color: var(--muted); font-size: 14px; }
 .ctl { border: 0; background: none; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 6px; color: var(--text); }
 .ctl:hover { background: var(--panel-2); }
 .ctl:disabled { opacity: .3; cursor: default; background: none; }
+.ctl.norm { font-size: 13px; color: var(--muted); white-space: nowrap; border: 1px solid var(--line-2); padding: 4px 10px; }
+.ctl.norm.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.ctl.norm small { font-variant-numeric: tabular-nums; margin-left: 4px; }
+.pop .danger { color: var(--err); }
+.delbox { width: min(520px, 94vw); }
+.delbox p { margin: 10px 0; }
+.delbox label { display: flex; gap: 8px; align-items: flex-start; margin: 14px 0; }
+#delGo { background: var(--err); border-color: var(--err); color: #fff; font-weight: 600; }
+.delbox .acts { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
 .toast { position: fixed; left: 50%; bottom: calc(var(--player) + 22px); transform: translateX(-50%) translateY(20px); opacity: 0;
   background: var(--raise); color: var(--text); border: 1px solid var(--line-2); padding: 9px 16px; border-radius: 8px; font-size: 14px;
   transition: .2s; pointer-events: none; z-index: 50; max-width: calc(100% - 32px); box-shadow: 0 8px 24px rgb(0 0 0 / .4); }
@@ -499,6 +508,17 @@ summary { cursor: pointer; color: var(--muted); font-size: 14px; }
   </div>
 </div>
 
+<div class="modal" id="delModal" hidden>
+  <div class="box delbox">
+    <h2 style="margin:0">刪除這場？</h2>
+    <p><b id="delTitle"></b><br><span class="hint" id="delInfo"></span></p>
+    <p class="hint">會刪掉整個資料夾：原始音訊、切好的歌、時間軸，無法復原。<span id="delLocal"></span></p>
+    <label><input type="checkbox" id="delForget" checked> <span>記住刪掉了：之後處理清單、頻道時略過，不會再下載回來<br>
+      <span class="hint">直接貼這部的網址處理，就會重新處理</span></span></label>
+    <div class="acts"><button class="btn" data-close>取消</button><button class="btn" id="delGo">🗑 刪除</button></div>
+  </div>
+</div>
+
 <div class="player">
   <div class="in">
     <div class="now"><div class="a" id="nowA">還沒有播放</div><div class="b"><b id="nowPos"></b> <span id="nowB">在歌庫點一首歌，或在修切點按空白鍵</span></div></div>
@@ -506,6 +526,7 @@ summary { cursor: pointer; color: var(--muted); font-size: 14px; }
     <button class="ctl" id="toggleBtn" title="播放／暫停（空白鍵）">▶</button>
     <button class="ctl" id="nextBtn" title="下一首" disabled>⏭</button>
     <audio id="audio" controls preload="none"></audio>
+    <button class="ctl norm" id="normBtn">⚖ 音量平衡<small id="normDb"></small></button>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -682,6 +703,7 @@ function startPolling() { job.running = true; schedule(100); }
 // ───────── 歌庫資料 ─────────
 let lib = { channels: [] };
 async function loadLibrary() {
+  loudCache.clear();                       // 重新切檔過的歌響度會變，重新問（伺服器有快取，很快）
   try { lib = await api("/api/library"); } catch (e) { toast("讀取歌庫失敗：" + e.message); return; }
   $("#outDir").textContent = lib.out || "—";
   renderTodoCount();
@@ -766,6 +788,7 @@ function renderLib() {
         <button class="btn sm" data-act="play" title="播放這場">▶</button>
         <button class="btn sm" data-act="fix" title="到修切點打開這場">✎ 修切點</button>
         ${st.url ? `<a class="btn sm ghost" href="${esc(st.url)}" target="_blank" rel="noopener" title="在 YouTube 開啟">↗</a>` : ""}
+        <button class="btn sm ghost" data-act="del" title="刪除這場（原始音訊、切好的歌全部刪掉）">🗑</button>
       </div>
       ${open ? `<ul class="songs">${songs.map(s => `
         <li class="song ${s.file ? "" : "missing"}" data-n="${s.n}" title="${s.file ? esc(BY[s.by] || "") : "找不到音檔，可能需要重新切檔"}">
@@ -782,7 +805,10 @@ function renderLib() {
   $("#libFilter").value = state.libFilter;
   $("#libFilter").onchange = e => { state.libFilter = e.target.value; store.set("libFilter", state.libFilter); renderLib(); };
   const sq = $("#libQ");
-  sq.oninput = () => { state.libQ = sq.value; const p = sq.selectionStart; renderLib(); const s2 = $("#libQ"); s2.focus(); s2.setSelectionRange(p, p); };
+  // 注音、倉頡等輸入法組字中不要重畫：重畫會換掉輸入框，組字被打斷，只剩一個一個注音
+  const search = () => { state.libQ = sq.value; const p = sq.selectionStart; renderLib(); const s2 = $("#libQ"); s2.focus(); s2.setSelectionRange(p, p); };
+  sq.oninput = e => { if (!e.isComposing) search(); };
+  sq.addEventListener("compositionend", search);
   $("#playAll").onclick = () => playList(channelQueue(ch, match), 0);
   $("#shuffle").onclick = () => {
     const qq = channelQueue(ch, match);
@@ -803,6 +829,7 @@ function renderLib() {
     };
     el.querySelector('[data-act="play"]').onclick = () => playList(streamQueue(ch, st, () => true), 0);
     el.querySelector('[data-act="fix"]').onclick = () => openFix(st.dir);
+    el.querySelector('[data-act="del"]').onclick = () => deleteStream(st);
     el.querySelectorAll(".song:not(.missing)").forEach(li => li.onclick = () => {
       const qq = streamQueue(ch, st, match);
       playList(qq, qq.findIndex(x => x.key === st.dir + "#" + li.dataset.n));
@@ -853,7 +880,8 @@ $("#listClose").onclick = () => { state.listCollapsed = true; store.set("listCol
 $("#listOpen").onclick = () => { state.listCollapsed = false; store.set("listCollapsed", false); applyListCollapsed(); };
 document.querySelectorAll("#fixSeg button").forEach(b => b.onclick = () => { state.fixList = b.dataset.f; store.set("fixList", state.fixList); renderFixList(); });
 $("#fixCh").onchange = e => { state.fixCh = e.target.value; store.set("fixCh", state.fixCh); renderFixList(); };
-$("#fixQ").oninput = e => { state.fixQ = e.target.value; renderFixList(); };
+$("#fixQ").oninput = e => { if (!e.isComposing) { state.fixQ = e.target.value; renderFixList(); } };
+$("#fixQ").addEventListener("compositionend", e => { state.fixQ = e.target.value; renderFixList(); });
 
 function openFix(dir) {
   state.fixDir = dir; state.fixTab = "edit"; store.set("fixDir", dir);
@@ -898,6 +926,7 @@ function renderFix(force = false) {
           <button data-f="redo">重新偵測（調整門檻）…</button>
           <button data-f="inlib">在歌庫中顯示</button>
           ${st.url ? `<a href="${esc(st.url)}" target="_blank" rel="noopener">在 YouTube 開啟 ↗</a>` : ""}
+          <button data-f="del" class="danger">🗑 刪除這場…</button>
         </div></div>
     </div>
     <div class="subtabs">
@@ -915,6 +944,7 @@ function renderFix(force = false) {
   const pop = main.querySelector(".pop");
   main.querySelector('[data-f="menu"]').onclick = e => { e.stopPropagation(); pop.hidden = !pop.hidden; };
   main.querySelector('[data-f="redo"]').onclick = () => redetect(st);
+  main.querySelector('[data-f="del"]').onclick = () => deleteStream(st);
   main.querySelector('[data-f="inlib"]').onclick = () => { state.libCh = ch.name; state.libOpen.add(st.dir); showView("lib");
     setTimeout(() => $(`#libMain .stream[data-dir="${qa(st.dir)}"]`)?.scrollIntoView?.({ block: "center" }), 50); };
   main.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { state.fixTab = b.dataset.tab; renderFix(true); });
@@ -932,6 +962,28 @@ function renderFix(force = false) {
   }
 }
 addEventListener("click", e => { if (!e.target.closest(".menu")) document.querySelectorAll(".menu .pop").forEach(p => p.hidden = true); });
+// 整場刪掉（歌庫、修切點共用）
+const delModal = $("#delModal");
+delModal.onclick = e => { if (e.target === delModal || e.target.closest("[data-close]")) delModal.hidden = true; };
+function deleteStream(st) {
+  $("#delTitle").textContent = st.title;
+  $("#delInfo").textContent = `${st.date || "日期不明"} · ${st.songs.length} 首`;
+  $("#delLocal").textContent = st.local_path ? "本機的原始影片檔不會動。" : "";
+  delModal.hidden = false;
+  $("#delGo").focus();
+  $("#delGo").onclick = async () => {
+    delModal.hidden = true;
+    if (queue[qi]?.dir === st.dir) { audio.pause(); audio.removeAttribute("src"); audio.load(); queue = []; qi = -1; updateCtl(); }
+    try {
+      const r = await api("/api/delete", { dir: st.dir, forget: $("#delForget").checked });
+      editState.delete(st.dir); state.libOpen.delete(st.dir);
+      if (state.fixDir === st.dir) { state.fixDir = null; store.set("fixDir", null); }
+      if (r.seq) startPolling();
+      toast("已刪除：" + st.title);
+    } catch (err) { toast("刪除失敗：" + err.message); }
+    loadLibrary();
+  };
+}
 function redetect(st) {
   if (st.locked) return toast("這場勾了「已手動處理」，處理時會略過。要重新偵測請先取消勾選");
   $("#urls").value = st.url || st.local_path || "";
@@ -1617,13 +1669,23 @@ function playList(list, i) {
   if (!list.length) return toast("沒有可以播放的歌");
   queue = list; playAt(Math.max(0, i));
 }
-function playAt(i) {
+async function playAt(i) {
   if (i < 0 || i >= queue.length) return;
   qi = i;
   const it = queue[i];
   audio.src = it.src;
   if (it.start) audio.addEventListener("loadedmetadata", () => { audio.currentTime = it.start; }, { once: true });
+  showNowPlaying(it, i);
+  if (norm) {
+    const level = applyLevel(it);
+    // 切好的歌量一次不到一秒，量好再播（不會開頭先大聲一下）；原始音訊很長，邊播邊量，量好再慢慢調
+    if (!it.key.startsWith("src:")) await Promise.race([level, new Promise(r => setTimeout(r, 2000))]);
+    if (queue[qi] !== it) return;
+  }
   audio.play().catch(() => {});
+  if (norm && queue[i + 1]) loudnessOf(queue[i + 1].src);       // 先量好下一首
+}
+function showNowPlaying(it, i) {
   $("#nowA").textContent = it.title;
   $("#nowB").textContent = `${it.sub}${queue.length > 1 ? `　(${i + 1}/${queue.length})` : ""}`;
   document.title = `${it.title} · vsong`;
@@ -1636,6 +1698,56 @@ function playSource(st, t, stopAt = null) {
 function stopIfPlaying(st) {     // 重新切檔會覆寫音檔，先放掉檔案
   if (queue[qi]?.key.startsWith(st.dir + "#")) { audio.pause(); audio.removeAttribute("src"); audio.load(); queue = []; qi = -1; updateCtl(); }
 }
+// ───────── 音量平衡 ─────────
+// 每首歌量整首的響度（LUFS，伺服器用 ffmpeg 量、存快取），用 Web Audio 調到差不多大聲；
+// 調大聲的時候後面接限制器，不會爆音
+const LEVEL = { target: -16, maxBoost: 10 };            // 目標響度、最多調大幾 dB
+let norm = store.get("norm", true), ac = null, gainNode = null, limiter = null;
+const loudCache = new Map();                           // 檔案網址 → Promise<LUFS 或 null>
+function loudnessOf(src) {
+  if (!loudCache.has(src)) {
+    const rel = decodeURIComponent(src.slice("/files/".length));
+    loudCache.set(src, api("/api/loudness?file=" + encodeURIComponent(encodeURIComponent(rel)))
+      .then(r => r.lufs ?? null).catch(() => { loudCache.delete(src); return null; }));
+  }
+  return loudCache.get(src);
+}
+function audioGraph() {
+  if (!ac) {
+    ac = new AudioContext();
+    gainNode = ac.createGain();
+    limiter = ac.createDynamicsCompressor();
+    limiter.threshold.value = -1.5; limiter.knee.value = 0; limiter.ratio.value = 20;
+    limiter.attack.value = 0.003; limiter.release.value = 0.25;
+    ac.createMediaElementSource(audio).connect(gainNode).connect(limiter).connect(ac.destination);
+  }
+  if (ac.state === "suspended") ac.resume().catch(() => {});
+}
+function setGain(db) {
+  if (gainNode) gainNode.gain.setTargetAtTime(10 ** (db / 20), ac.currentTime, 0.08);
+  $("#normDb").textContent = norm && db != null ? ` ${db > 0 ? "+" : db < 0 ? "−" : "±"}${Math.abs(db).toFixed(1)} dB` : "";
+}
+async function applyLevel(it) {
+  if (!norm || !it) return setGain(0);
+  audioGraph();
+  const lufs = await loudnessOf(it.src);
+  if (queue[qi] !== it || !norm) return;
+  setGain(lufs == null ? 0 : Math.min(LEVEL.maxBoost, LEVEL.target - lufs));
+}
+function updateNormBtn() {
+  const b = $("#normBtn");
+  b.classList.toggle("on", norm);
+  b.title = norm ? "音量平衡：開（每首歌調到差不多大聲）。點一下關掉" : "音量平衡：關（照原本的音量播）。點一下打開";
+}
+$("#normBtn").onclick = () => {
+  norm = !norm; store.set("norm", norm); updateNormBtn();
+  if (norm) applyLevel(queue[qi]);
+  else { setGain(0); }
+  if (limiter) limiter.ratio.value = norm ? 20 : 1;          // 關掉時限制器也不作用，完全照原音
+  toast(norm ? "音量平衡：開" : "音量平衡：關");
+};
+updateNormBtn();
+
 // 播到指定的時間就停（聽尾用）：timeupdate 一秒只觸發約 4 次，另外用計時器檢查，停得比較準
 let stopTimer = null;
 function watchStop() {
@@ -1680,6 +1792,7 @@ function markPlaying() {
 }
 audio.onended = () => qi < queue.length - 1 && playAt(qi + 1);
 audio.onplay = audio.onpause = () => { $("#toggleBtn").textContent = audio.paused ? "▶" : "❚❚"; markPlaying(); };
+audio.addEventListener("play", () => { if (ac?.state === "suspended") ac.resume().catch(() => {}); });
 audio.ontimeupdate = audio.onseeked = updatePositions;
 $("#prevBtn").onclick = () => playAt(qi - 1);
 $("#nextBtn").onclick = () => playAt(qi + 1);
@@ -1697,7 +1810,8 @@ document.addEventListener("keydown", e => {
   // 「在打字」只算文字欄位；勾選框、按鈕上照樣可以用快捷鍵
   const typing = e.target.matches('textarea, select, input:not([type="checkbox"]):not([type="radio"]):not([type="button"])');
   const ed = state.view === "fix" && lastEditor && lastEditor === state.fixDir;
-  if (e.key === "Escape") { help.hidden = true; openDrawer(false); return; }
+  if (e.key === "Escape") { help.hidden = true; delModal.hidden = true; openDrawer(false); return; }
+  if (!delModal.hidden) return;
   if (ed && (e.ctrlKey || e.metaKey) && !e.altKey) {
     if (e.key === "s" || e.key === "S") { e.preventDefault(); return editor.save(false); }
     if (e.key === "Enter") { e.preventDefault(); return editor.save(true); }

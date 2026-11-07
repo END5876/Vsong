@@ -14,6 +14,8 @@ import base64
 import json
 import mimetypes
 import os
+import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -377,6 +379,69 @@ def spectrum(out_root, rel_dir, t, before=8.0, after=8.0, kind=None, mark=None):
             "cands": cands}
 
 
+_loud_lock = threading.Lock()
+
+
+def file_loudness(out_root, rel):
+    """播放時的音量平衡用：整首的響度（LUFS，EBU R128）。
+    量過的存在同一個資料夾的 loudness.json，檔案改過（重新切檔）才重量"""
+    p = safe_path(out_root, rel)
+    if not p or not p.is_file():
+        raise ValueError("找不到檔案")
+    cache_p = p.parent / "loudness.json"
+    st = p.stat()
+    key = {"size": st.st_size, "mtime": round(st.st_mtime, 3)}
+    with _loud_lock:
+        try:
+            cache = json.loads(cache_p.read_text(encoding="utf-8"))
+        except Exception:
+            cache = {}
+    hit = cache.get(p.name)
+    if hit and all(hit.get(k) == v for k, v in key.items()):
+        return hit["lufs"]
+    err = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(p), "-map", "0:a:0", "-vn",
+                          "-af", "ebur128=framelog=quiet", "-f", "null", "-"],
+                         capture_output=True, text=True, encoding="utf-8", errors="replace").stderr
+    m = re.findall(r"^\s*I:\s*(-?[\d.]+|-inf) LUFS", err, re.M)
+    lufs = float(m[-1]) if m and m[-1] != "-inf" else None
+    with _loud_lock:
+        try:
+            cache = json.loads(cache_p.read_text(encoding="utf-8"))
+        except Exception:
+            cache = {}
+        cache[p.name] = {**key, "lufs": lufs}
+        cache_p.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+    return lufs
+
+
+def delete_stream(out_root, rel_dir, forget=True):
+    """整場刪掉（out/<頻道>/<影片ID>/ 整個資料夾，含原始音訊和切好的歌）。
+    forget：記進 deleted.json，之後處理清單、頻道時不會再下載回來。本機的原始影片不會動"""
+    d = safe_path(out_root, rel_dir)
+    root = out_root.resolve()
+    if not d or d.parent.parent != root or not d.is_dir():
+        raise ValueError("不是一場的資料夾")
+    tl = {}
+    for name in ("timeline.json", "meta.json"):
+        try:
+            tl = json.loads((d / name).read_text(encoding="utf-8"))
+            break
+        except Exception:
+            continue
+    else:
+        raise ValueError("這個資料夾裡沒有 timeline.json，不是 vsong 的輸出")
+    try:
+        shutil.rmtree(d)
+    except OSError as e:
+        raise ValueError(f"刪除失敗（檔案可能正在使用中，例如正在處理這場）：{e}")
+    if forget:
+        vsong.set_deleted(root, tl.get("video_id") or d.name)
+    ch = d.parent
+    if not any(ch.glob("*/timeline.json")) and not any(ch.glob("*/meta.json")):
+        shutil.rmtree(ch, ignore_errors=True)        # 頻道裡沒有別場了：總歌單、歌庫表一起刪
+    return ch.exists()
+
+
 def safe_path(out_root, rel):
     """把網址路徑對應到 out 底下的檔案，擋掉 ../ 之類跑出 out 的路徑"""
     root = out_root.resolve()
@@ -425,6 +490,11 @@ def make_handler(out_root, job):
                                             q.get("kind", [None])[0], float(q["m"][0]) if q.get("m") else None))
                 except (ValueError, OSError, subprocess.CalledProcessError) as e:
                     self.send_json({"error": str(e)}, HTTPStatus.BAD_REQUEST)
+            elif u.path == "/api/loudness":
+                try:
+                    self.send_json({"lufs": file_loudness(out_root, parse_qs(u.query).get("file", [""])[0])})
+                except (ValueError, OSError) as e:
+                    self.send_json({"error": str(e)}, HTTPStatus.BAD_REQUEST)
             elif u.path == "/api/library":
                 self.send_json({"out": str(out_root.resolve()), "channels": list_library(out_root)})
             elif u.path.startswith("/files/"):
@@ -449,6 +519,10 @@ def make_handler(out_root, job):
                 elif u.path == "/api/lock":
                     set_locked(out_root, body.get("dir", ""), bool(body.get("locked")))
                     return self.send_json({"ok": True})
+                elif u.path == "/api/delete":
+                    if not delete_stream(out_root, body.get("dir", ""), body.get("forget", True)):
+                        return self.send_json({"ok": True})
+                    ok = job.enqueue(["--library", "--out", str(out_root)], "重建總歌單")   # 總歌單、歌庫表拿掉這場
                 elif u.path == "/api/stop":
                     return self.send_json({"ok": job.stop()})
                 elif u.path == "/api/setlist/preview":
